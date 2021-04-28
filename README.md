@@ -103,7 +103,7 @@ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/physx3.4/lib' >> ~/.bash
 This assumes a standard Ubuntu 18.04 machine.
 First clone the repository and install dependencies
 ```
-git clone --recursive https://github.com/MarcToussaint/robotics-course.git
+git clone --recursive https://github.com/humans-to-robots-motion/robotics-course.git
 cd robotics-course
 
 make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
