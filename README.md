@@ -108,7 +108,34 @@ cd robotics-course
 
 make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
 ```
+
+Build the dependencies
+```
+mkdir build 
+cd build
+cmake ..
+make -j $(command nproc)   # builds libs and tests
+```
+
+Install jupyter and launch tutorial
+```
+pip3 install --user jupyter nbconvert matplotlib
+jupyter-notebook tutorials/1-basics.ipynb 
+```
+
+After loading the pr2 and the kitchen (running first 3 cells in the notebook), the simulator window should look similar to:
+
+
+
+![Alt text](screenshot.png?raw=true "Title")
+
+
+Notes:
+
+
 In this course, check that in 'config.mk' we have (disabling lots of stuff)
+This should already be the case
+
 ```
 ROS=0
 OPENCV=0
@@ -117,22 +144,6 @@ BULLET=0
 CERES = 0
 NLOPT = 0
 ```
-
-```
-mkdir build 
-cd build
-cmake ..
-make -j $(command nproc)   # builds libs and tests
-
-pip3 install --user jupyter nbconvert matplotlib
-
-jupyter-notebook tutorials/1-basics.ipynb 
-```
-After loading the pr2 and the kitchen (running first 3 cells in the notebook), the simulator window should look similar to:
-![Alt text](screenshot.png?raw=true "Title")
-
-
-
 
 ### Setup for the Robotics Lab Course with the real Baxter Robot Baxter
 
