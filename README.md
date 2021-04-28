@@ -101,7 +101,13 @@ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/physx3.4/lib' >> ~/.bash
 ### Setup for Robotics Lecture Exercises
 
 This assumes a standard Ubuntu 18.04 machine.
+First clone the repository and install dependencies
+```
+git clone --recursive https://github.com/MarcToussaint/robotics-course.git
+cd robotics-course
 
+make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
+```
 In this course, check that in 'config.mk' we have (disabling lots of stuff)
 ```
 ROS=0
@@ -113,12 +119,10 @@ NLOPT = 0
 ```
 
 ```
-git clone --recursive https://github.com/MarcToussaint/robotics-course.git
-cd robotics-course
-
-make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
+mkdir build 
+cd build
+cmake ..
 make -j $(command nproc)   # builds libs and tests
-ln -s rai/lib build
 
 pip3 install --user jupyter nbconvert matplotlib
 
