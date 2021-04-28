@@ -115,6 +115,7 @@ mkdir build
 cd build
 cmake ..
 make -j $(command nproc)   # builds libs and tests
+cd ..
 ```
 
 Install jupyter and launch tutorial
