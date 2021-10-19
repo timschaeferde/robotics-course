@@ -46,7 +46,7 @@ pip3 install --user jupyter nbconvert matplotlib pybind11 opencv-python
 ```
 mkdir -p $HOME/git
 cd $HOME/git
-git clone --recursive https://github.com/MarcToussaint/robotics-course.git
+git clone --recursive https://github.com/humans-to-robots-motion/robotics-course.git
 
 cd robotics-course
 make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
@@ -61,8 +61,7 @@ make -j $(command nproc)
 
 * If you use python, run tests:
 ```
-jupyter-notebook tutorials/1-basics.ipynb
-jupyter-notebook course3-Simulation
+jupyter-notebook course3-Simulation/01-test.ipynb
 ```
 
 * If you use C++, compile and run the tests:
