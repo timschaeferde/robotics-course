@@ -18,7 +18,7 @@ RAI_CMAKE = 1
 #FCL = 0
 ODE = 0
 PHYSX = 0
-#BULLET = 0
+BULLET = 0
 G4 = 0
 PCL = 0
 #PYBIND = 0
@@ -30,4 +30,7 @@ ROS_VERSION = melodic
 REALSENSE = 0
 CERES = 0
 NLOPT = 0
+<<<<<<< HEAD
 IPOPT = 0
+=======
+>>>>>>> 61fd1f8b5632250658a3248f50b6f290facecbc6

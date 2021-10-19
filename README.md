@@ -106,22 +106,13 @@ echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/opt/physx3.4/lib' >> ~/.bash
 ### Setup for Robotics Lecture Exercises
 
 This assumes a standard Ubuntu 18.04 machine.
-
-In this course, check that in 'config.mk' we have (disabling lots of stuff)
+First clone the repository and install dependencies
 ```
-ROS=0
-OPENCV=0
-PHYSX=0
-BULLET=0
-CERES = 0
-NLOPT = 0
-```
-
-```
-git clone --recursive https://github.com/MarcToussaint/robotics-course.git
+git clone --recursive https://github.com/humans-to-robots-motion/robotics-course.git
 cd robotics-course
 
 make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
+<<<<<<< HEAD
 # If this fails, please try `make -j1 printUbuntuAll` to print all packages and install manually
 
 make -j $(command nproc)   # builds libs and tests
@@ -131,14 +122,46 @@ ln -s rai/lib build
 To test the python notebooks:
 ```
 # export PATH="${PATH}:$HOME/.local/bin"   #add this to your .bashrc, if not done already
+=======
+```
+
+Build the dependencies
+```
+mkdir build 
+cd build
+cmake ..
+make -j $(command nproc)   # builds libs and tests
+cd ..
+```
+
+Install jupyter and launch tutorial
+```
+>>>>>>> 61fd1f8b5632250658a3248f50b6f290facecbc6
 pip3 install --user jupyter nbconvert matplotlib
 jupyter-notebook tutorials/1-basics.ipynb 
 ```
+
 After loading the pr2 and the kitchen (running first 3 cells in the notebook), the simulator window should look similar to:
+
+
+
 ![Alt text](screenshot.png?raw=true "Title")
 
 
+Notes:
 
+
+In this course, check that in 'config.mk' we have (disabling lots of stuff)
+This should already be the case
+
+```
+ROS=0
+OPENCV=0
+PHYSX=0
+BULLET=0
+CERES = 0
+NLOPT = 0
+```
 
 ### Setup for the Robotics Lab Course with the real Baxter Robot Baxter
 
