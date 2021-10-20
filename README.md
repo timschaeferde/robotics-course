@@ -61,7 +61,7 @@ make -j $(command nproc)
 
 * If you use python, run tests:
 ```
-jupyter-notebook course3-Simulation/01-test.ipynb
+jupyter-notebook course3-Simulation/01-test/main.ipynb
 ```
 
 * If you use C++, compile and run the tests:
