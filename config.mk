@@ -30,7 +30,4 @@ ROS_VERSION = melodic
 REALSENSE = 0
 CERES = 0
 NLOPT = 0
-<<<<<<< HEAD
 IPOPT = 0
-=======
->>>>>>> 61fd1f8b5632250658a3248f50b6f290facecbc6
