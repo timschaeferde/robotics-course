@@ -37,7 +37,7 @@ to install 3rd-party libs -- please stick to this (no system-wide installs)
 
 * If you'll use python:
 ```
-sudo apt-get install python3 python3-dev python3-numpy python3-pip python3-distutils
+sudo apt-get install python3 python3-dev python3-numpy python3-pip python3-distutils libbullet-dev
 echo 'export PATH="${PATH}:$HOME/.local/bin"' >> ~/.bashrc   #add this to your .bashrc, if not done already
 pip3 install --user jupyter nbconvert matplotlib pybind11 opencv-python
 ```
@@ -50,7 +50,12 @@ git clone --recursive https://github.com/humans-to-robots-motion/robotics-course
 
 cd robotics-course
 make -j1 installUbuntuAll  # calls sudo apt-get install; you can always interrupt
-# If this fails, please try `make -j1 printUbuntuAll` to print all packages and install manually
+# If this fails, please try `make -j1 printUbuntuAll` to print all packages and install manually or use the following line
+# sudo apt-get --yes install \ 
+      g++ gnuplot libjsoncpp-dev liblapack-dev libeigen3-dev \ 
+      libann-dev libf2c2-dev libfcl-dev libassimp-devlibqhull-dev \ 
+      libassimp-dev libx11-dev libglfw3-dev graphviz-dev \ 
+      libglew-dev freeglut3-dev libf2c2-dev libopencv-dev \ 
 
 mkdir build
 cd build
@@ -61,7 +66,7 @@ make -j $(command nproc)
 
 * If you use python, run tests:
 ```
-jupyter-notebook course3-Simulation/01-test.ipynb
+jupyter-notebook course3-Simulation/01-test/main.ipynb
 ```
 
 * If you use C++, compile and run the tests:
