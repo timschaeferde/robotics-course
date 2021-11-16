@@ -26,7 +26,7 @@ void grasp_the_hopping_ball(){
   realObj->setPosition({0., .2, 2.});
   realObj->setContact(1);
 
-  rai::Simulation S(RealWorld, S._bullet, 1);
+  rai::Simulation S(RealWorld, S._bullet, 2);
   S.cameraview().addSensor("camera");
 
   //add an imp!!
@@ -80,8 +80,8 @@ void grasp_the_hopping_ball(){
     C.watch();
 
     //some good old fashioned IK
-    auto diff = C.feature(FS_positionDiff, {"R_gripperCenter", "object"})->eval(C);
-    auto vecX = C.feature(FS_scalarProductXZ, {"R_gripperCenter", "world"})->eval(C);
+    auto diff = C.feature(FS_positionDiff, {"R_gripper", "object"})->eval(C);
+    auto vecX = C.feature(FS_scalarProductXZ, {"R_gripper", "world"})->eval(C);
 
     //stack them
     arr y, J;
