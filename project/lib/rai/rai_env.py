@@ -5,17 +5,17 @@ import time
 import numpy as np
 from pyquaternion import Quaternion
 
-from CONFIG import *
+from config.CONFIG import *
 # import ros topic publishers
-from publisher.imgpub_all import ImagePublisher
-from publisher.joint_pub import JointPublisher
-from publisher.pointcloud2_pub import Pc2Publisher
+# from lib.publisher.imgpub_all import ImagePublisher
+# from lib.publisher.joint_pub import JointPublisher
+# from lib.publisher.pointcloud2_pub import Pc2Publisher
 
 sys.path.append(RAI_PATH)
 import libry as ry
 #import rospy
 
-from rai.rai_helper import set_frame_properties
+from lib.rai.rai_helper import set_frame_properties
 
 
 class RaiEnv:

@@ -1,6 +1,6 @@
 import random
 import sys
-from CONFIG import *
+from config.CONFIG import *
 
 sys.path.append(RAI_PATH)
 import libry as ry

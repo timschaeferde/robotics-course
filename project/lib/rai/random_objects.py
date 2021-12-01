@@ -3,9 +3,9 @@ import sys
 
 import numpy as np
 
-from CONFIG import *
-from prediction import color_seg
-from rai.rai_helper import set_frame_properties
+from config.CONFIG import *
+from lib.prediction import color_seg
+from lib.rai.rai_helper import set_frame_properties
 
 # parent script need to append path to (package_name)/scripts
 

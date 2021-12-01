@@ -1,4 +1,4 @@
-from tools.color_operations import *
+from lib.tools.color_operations import *
 
 
 # segment object using color

@@ -13,7 +13,7 @@ from config.CONFIG import *
 from pyquaternion import Quaternion
 
 # append Rai lib path
-print(os.getcwd())
+
 sys.path.append(RAI_PATH)
 
 import libry as ry
@@ -21,22 +21,16 @@ import libry as ry
 from lib.rai.rai_env import RaiEnv
 from lib.rai.rai_helper import create_k_markers, set_frame_properties
 from lib.rai.random_objects import add_dataset_objects
-from lib.prediction.dbot_helper import call_dbot
 from lib.tools.utils import dump_data, get_gt, json2numpy, load_data
 
-sys.path.append(MRCNN_PATH)
-from scripts.datasets import final_objs_coco as dataset
 
 ###### finished import here ###########
 
-CALL_DBOT = True
+CALL_DBOT = False
 VISUALIZE_MRCNN = False
 VISUALIZE_MESH_REG = False
 ADD_TRACKERS = True
 LOAD_LAST_DEMO = False
-
-mesh_dir_path = os.path.join(rospack.get_path(MESH_PKG), MESH_DIR)
-
 
 def main():
     #########################################

@@ -9,7 +9,7 @@ import numpy as np
 from pyquaternion import Quaternion
 from sklearn.metrics import euclidean_distances
 
-from prediction import color_seg
+from lib.prediction import color_seg
 
 
 def get_gt(pred_metadata, real_metadata):
