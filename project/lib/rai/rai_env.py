@@ -13,7 +13,7 @@ from publisher.pointcloud2_pub import Pc2Publisher
 
 sys.path.append(RAI_PATH)
 import libry as ry
-import rospy
+#import rospy
 
 from rai.rai_helper import set_frame_properties
 
@@ -81,21 +81,21 @@ class RaiEnv:
         self.cameraFrame = self.RealWorld.getFrame(frame_name)
         self.cameraInfo = RaiCameraInfo(fxfypxpy, self.cameraFrame.getPosition(), self.cameraFrame.getQuaternion())
 
-    def _init_publishers(self):
-        # init rospy node before publishers
-        try:
-            rospy.init_node('rospy_node', anonymous=True)
-        except rospy.exceptions.ROSException:
-            print("Already inialized!")
-        # init img_publisher
-        self.img_pub_depth = ImagePublisher(image_topic="/camera/depth/image", encoding="32FC1",
-                                            info_topic="/camera/depth/camera_info", fxfypxpy=self.cameraInfo.fxfypxpy,
-                                            frame_id='camera_depth_optical_frame')
-        self.img_pub_rgb = ImagePublisher(image_topic="/camera/rgb/image_raw", encoding="rgb8")
-        # init pointcloud publisher
-        self.pc_pub = Pc2Publisher(topic="/camera/depth/points")
-        # init joint publisher
-        self.joint_pub = JointPublisher(node="joint_state_publisher")
+    # def _init_publishers(self):
+    #     # init rospy node before publishers
+    #     try:
+    #         rospy.init_node('rospy_node', anonymous=True)
+    #     except rospy.exceptions.ROSException:
+    #         print("Already inialized!")
+    #     # init img_publisher
+    #     self.img_pub_depth = ImagePublisher(image_topic="/camera/depth/image", encoding="32FC1",
+    #                                         info_topic="/camera/depth/camera_info", fxfypxpy=self.cameraInfo.fxfypxpy,
+    #                                         frame_id='camera_depth_optical_frame')
+    #     self.img_pub_rgb = ImagePublisher(image_topic="/camera/rgb/image_raw", encoding="rgb8")
+    #     # init pointcloud publisher
+    #     self.pc_pub = Pc2Publisher(topic="/camera/depth/points")
+    #     # init joint publisher
+    #     self.joint_pub = JointPublisher(node="joint_state_publisher")
 
     def _sort_C_frames(self):
         self.rFrames = [f for f in self.C.getFrameNames() if
@@ -148,22 +148,10 @@ class RaiEnv:
                     # publish joints
                     self.publish_joint_states(q)
 
-                # Rai.S.closeGripper("R_gripper", 10)
-
-                # if int(t/10)<25:
-                #     objs[0].setPosition([p[int(t/10)][0], p[int(t/10)][1], objs[0].getPosition()[2]])
-                #     Rai.C.setFrameState(ik_objectives(Rai))
-                #     Rai.V.setConfiguration(Rai.C) #to update your model display
-                #     q = Rai.C.getJointState()
                 if self.initConfig:
                     self.V.recopyMeshes(self.C)
                     self.V.setConfiguration(self.C)
 
-                # if len(rgb)>0: cv2.imshow('OPENCV - rgb', rgb)
-                # if len(depth)>0: cv2.imshow('OPENCV - depth', 0.5* depth)
-
-                # if cv2.waitKey(1) & 0xFF == ord('q'):
-                #     break
 
             self.S.step(q, self.tau, ry.ControlMode.position)
             # Rai.S.step([], Rai.tau, ry.ControlMode.none)
