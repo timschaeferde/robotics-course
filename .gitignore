@@ -1,5 +1,7 @@
 rai-python-teaching
 
+CONFIG.py
+
 %% compile temporaries
 /build
 *.o
