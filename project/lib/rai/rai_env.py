@@ -1,3 +1,5 @@
+from lib.rai.rai_helper import set_frame_properties
+import libry as ry
 import os
 import sys
 import time
@@ -12,29 +14,31 @@ from config.CONFIG import *
 # from lib.publisher.pointcloud2_pub import Pc2Publisher
 
 sys.path.append(RAI_PATH)
-import libry as ry
 #import rospy
-
-from lib.rai.rai_helper import set_frame_properties
 
 
 class RaiEnv:
     def __init__(self,
                  tau=.01,
-                 realEnv="scenarios/full_env.g",
-                 modelEnv="scenarios/baxter_gripper_env.g",
-                 useROS=True,
+                 realEnv="scenarios/challenge.g",
+                 modelEnv="scenarios/pandasTable.g",
+                 useROS=False,
                  initSim=True,
                  initConfig=True,
-                 verboseSim=True):
+                 simulatorEngine=ry.SimulatorEngine.bullet,
+                 verboseSim=0):
 
         self.tau = tau
         self.useROS = useROS
         self.initConfig = initConfig
+        assert verboseSim in [0, 1, 2, True, False]
         self.verboseSim = verboseSim
+        assert issubclass(ry.SimulatorEngine, simulatorEngine.__class__)
+        self.simulatorEngine = simulatorEngine
 
         # instantiate worlds
-        project_path = os.path.dirname(os.path.abspath(__file__)) + "/../../"
+        project_path = os.path.dirname(
+            os.path.abspath(__file__)) + "/../../../"
         self._init_realWorld(project_path + realEnv)
         if initSim:
             self._init_simulation()
@@ -48,21 +52,18 @@ class RaiEnv:
     def _init_realWorld(self, env):
         self.RealWorld = ry.Config()
         self.RealWorld.addFile(env)
-        if self.initConfig:
-            self.V = ry.ConfigurationViewer()
-            self.V.setConfiguration(self.RealWorld)
-        else:
+        if not self.initConfig:
             self._init_camera("camera")
 
     def _init_simulation(self):
-        self.S = self.RealWorld.simulation(ry.SimulatorEngine.physx, self.verboseSim)
+        self.S = self.RealWorld.simulation(
+            self.simulatorEngine, self.verboseSim)
         self.S.addSensor("camera")
 
     def _init_modelWorld(self, env):
         self.C = ry.Config()
         self.C.addFile(env)
-        # V = ry.ConfigurationViewer()
-        self.V.setConfiguration(self.C)
+        self.D = self.C.view()
         self._init_camera("camera")
         self._sort_C_frames()
 
@@ -79,7 +80,8 @@ class RaiEnv:
         fxfypxpy = [f, f, width / 2., height / 2.]
 
         self.cameraFrame = self.RealWorld.getFrame(frame_name)
-        self.cameraInfo = RaiCameraInfo(fxfypxpy, self.cameraFrame.getPosition(), self.cameraFrame.getQuaternion())
+        self.cameraInfo = RaiCameraInfo(
+            fxfypxpy, self.cameraFrame.getPosition(), self.cameraFrame.getQuaternion())
 
     # def _init_publishers(self):
     #     # init rospy node before publishers
@@ -102,16 +104,20 @@ class RaiEnv:
                         f.startswith("right_") or f.startswith('r_') or f.startswith('R_')]
         self.lFrames = [f for f in self.C.getFrameNames() if
                         f.startswith("left_") or f.startswith('l_') or f.startswith('L_')]
-        self.elseFrames = filter_list(self.C.getFrameNames(), self.rFrames + self.lFrames)
+        self.elseFrames = filter_list(
+            self.C.getFrameNames(), self.rFrames + self.lFrames)
 
         self.rJoints = [j for j in self.C.getJointNames() if
                         j.startswith("right_") or j.startswith('r_') or j.startswith('R_')]
         self.lJoints = [j for j in self.C.getJointNames() if
                         j.startswith("left_") or j.startswith('l_') or j.startswith('L_')]
-        self.elseJoints = filter_list(self.C.getJointNames(), self.rJoints + self.lJoints)
+        self.elseJoints = filter_list(
+            self.C.getJointNames(), self.rJoints + self.lJoints)
 
-        assert len(self.C.getFrameNames()) == len(self.rFrames) + len(self.lFrames) + len(self.elseFrames)
-        assert len(self.C.getJointNames()) == len(self.rJoints) + len(self.lJoints) + len(self.elseJoints)
+        assert len(self.C.getFrameNames()) == len(self.rFrames) + \
+            len(self.lFrames) + len(self.elseFrames)
+        assert len(self.C.getJointNames()) == len(self.rJoints) + \
+            len(self.lJoints) + len(self.elseJoints)
 
     def grab_camera_image(self):
         [rgb, depth] = self.S.getImageAndDepth()
@@ -119,23 +125,23 @@ class RaiEnv:
         self.cameraFrame.setPointCloud(points, rgb)
         return {"rgb": rgb, "depth": depth, "pointcloud": points}
 
-    def publish_camera_topics(self, img):
-        if not self.useROS: return
-        # publish rgb
-        self.img_pub_rgb.publish(img["rgb"])
+    # def publish_camera_topics(self, img):
+    #     if not self.useROS: return
+    #     # publish rgb
+    #     self.img_pub_rgb.publish(img["rgb"])
 
-        # publish depth
-        self.img_pub_depth.publish(img["depth"])
+    #     # publish depth
+    #     self.img_pub_depth.publish(img["depth"])
 
-        # publish pointcloud
-        self.pc_pub.publish(img["pointcloud"], img["rgb"], "camera_link")
+    #     # publish pointcloud
+    #     self.pc_pub.publish(img["pointcloud"], img["rgb"], "camera_link")
 
-    def publish_joint_states(self, q):
-        if not self.useROS: return
-        self.joint_pub.publish(self.C.getJointNames(), q)
+    # def publish_joint_states(self, q):
+    #     if not self.useROS: return
+    #     self.joint_pub.publish(self.C.getJointNames(), q)
 
-    def run_simulation(self, tsteps=1000):
-        for t in range(tsteps):
+    def run_simulation(self, steps=1000):
+        for t in range(steps):
             time.sleep(self.tau)
 
             # grab sensor readings f:rom the simulation
@@ -147,11 +153,6 @@ class RaiEnv:
                     self.publish_camera_topics(img)
                     # publish joints
                     self.publish_joint_states(q)
-
-                if self.initConfig:
-                    self.V.recopyMeshes(self.C)
-                    self.V.setConfiguration(self.C)
-
 
             self.S.step(q, self.tau, ry.ControlMode.position)
             # Rai.S.step([], Rai.tau, ry.ControlMode.none)
