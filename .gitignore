@@ -1,6 +1,6 @@
 rai-python-teaching
 
-CONFIG.py
+project/config/CONFIG.py
 
 %% compile temporaries
 /build
