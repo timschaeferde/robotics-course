@@ -3,6 +3,7 @@ import libry as ry
 import os
 import sys
 import time
+import cv2 as cv
 
 import numpy as np
 from pyquaternion import Quaternion
@@ -14,7 +15,7 @@ from config.CONFIG import *
 # from lib.publisher.pointcloud2_pub import Pc2Publisher
 
 sys.path.append(RAI_PATH)
-#import rospy
+# import rospy
 
 
 class RaiEnv:
@@ -25,15 +26,22 @@ class RaiEnv:
                  useROS=False,
                  initSim=True,
                  initConfig=True,
-                 simulatorEngine=ry.SimulatorEngine.bullet,
+                 simulatorEngine=ry.SimulatorEngine.physx,
                  verboseSim=0):
 
         self.tau = tau
+
+        assert not useROS
+        # assert type(useROS) is bool
         self.useROS = useROS
+
+        assert type(initConfig) is bool
         self.initConfig = initConfig
+
         assert verboseSim in [0, 1, 2, True, False]
         self.verboseSim = verboseSim
-        assert issubclass(ry.SimulatorEngine, simulatorEngine.__class__)
+
+        assert type(simulatorEngine) is ry.SimulatorEngine
         self.simulatorEngine = simulatorEngine
 
         # instantiate worlds
@@ -147,10 +155,28 @@ class RaiEnv:
             # grab sensor readings f:rom the simulation
             q = self.S.get_q()
             if t % 10 == 0:
+                # we don't need images with 100Hz, rendering is slow
+                [rgb, depth] = self.S.getImageAndDepth()
+
+                # convert depth to point cloud, n*3 shape
+                points = self.S.depthData2pointCloud(
+                    depth, self.cameraInfo.fxfypxpy)
+
+                # setting shape of the camera frame to be equal to camera frame
+                # This will publish the point cloud in the configuration viewer
+                self.cameraFrame.setPointCloud(points, rgb)
+
+                # if len(rgb) > 0:
+                #    cv.imshow('OPENCV - rgb', rgb)
+                # if len(depth) > 0:
+                #    cv.imshow('OPENCV - depth', 0.5 * depth)
+
+                # if cv.waitKey(1) & 0xFF == ord('q'):
+                #    break
+
                 if self.useROS:
-                    img = self.grab_camera_image()
                     # publish images
-                    self.publish_camera_topics(img)
+                    self.publish_camera_topics([rgb, depth])
                     # publish joints
                     self.publish_joint_states(q)
 

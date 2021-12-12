@@ -24,12 +24,6 @@ sys.path.append(RAI_PATH)
 
 ###### finished import here ###########
 
-CALL_DBOT = False
-VISUALIZE_MRCNN = False
-VISUALIZE_MESH_REG = False
-ADD_TRACKERS = True
-LOAD_LAST_DEMO = False
-
 
 def main():
     #########################################
@@ -39,9 +33,10 @@ def main():
                  realEnv="scenarios/project_env.g",
                  modelEnv="scenarios/project_env.g",
                  useROS=False,
-                 initSim=True,
+                 initSim=False,
                  initConfig=True,
-                 verboseSim=True)
+                 simulatorEngine=ry.SimulatorEngine.bullet,
+                 verboseSim=1)
 
     #########################################
     # init simulation                       #
