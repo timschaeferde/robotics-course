@@ -8,6 +8,8 @@ option(USE_PYBIND "build python bindings" ON)
 option(USE_BULLET "link to bullet" ON)
 option(USE_OPENCV "link to opencv" ON)
 
+find_package(PythonInterp 3.8 REQUIRED)
+
 add_compile_options(
   -O3 -g -Wall -fPIC -std=c++14 -Wno-terminate -Wno-pragmas
   )
