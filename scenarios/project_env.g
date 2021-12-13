@@ -46,18 +46,24 @@ Edit R_panda_link0 (world)  { Q:<t( 1. 0. 0.) d(180 0 0 1)> }
 camera(world){
     Q:<t(-0.2 -1.1 1.2) d(55 1 -0.1 0)>,
     shape:marker, size:[.2],
-    focalLength:0.895, width:640, height:360, zRange:[.5 100]
+    focalLength:0.895, width:640, height:480, zRange:[.5 100]
 }
 
 camera2(world){
     Q:<t(0.2 1.1 1.2) d(-55 1 -0.1 0)>,
     shape:marker, size:[.2],
-    focalLength:0.895, width:640, height:360, zRange:[.5 100]
+    focalLength:0.895, width:640, height:480, zRange:[.5 100]
 }
 
 camera3(world){
     Q:<t(0. 0 2.0) d(0 1 0 0)>,
     shape:marker, size:[.2],
-    focalLength:0.895, width:640, height:360, zRange:[.5 100]
+    focalLength:0.895, width:640, height:480, zRange:[.5 100]
 }
+
+### ball
+
+ball 	{  shape:sphere, size:[.03],contact:1, mass:.1 X:<[0.5, 0., 0.1, 0,0,0,1.]> color:[1,0,0] }
+
+
 

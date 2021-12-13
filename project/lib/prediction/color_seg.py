@@ -26,7 +26,8 @@ def _segment_redball(rgb):
         largest, idx = 0., None
         for i, c in enumerate(contours):
             # remove noise
-            if c.shape[0] < 10: continue
+            if c.shape[0] < 10:
+                continue
             if cv.contourArea(c) > largest:
                 largest = cv.contourArea(c)
                 idx = i
@@ -63,15 +64,17 @@ def _meter_pointcloud(pixel_points, fxfypxpy):
     return points
 
 
-def find_ball(rgb, depth, fxfypxpy):
-    mask = _segment_redball(rgb)
+def find_ball(ball_color, rgb, depth, fxfypxpy):
+    mask = _mask_by_color(
+        rgb, ball_color, hsv_tolerance=np.array([10, 200, 200], np.uint8))
     pixel_points = _image_pointcloud(depth, mask)
     obj_points = _meter_pointcloud(pixel_points, fxfypxpy)
     return obj_points, mask
 
 
 def find_cylinders(rgb, depth, fxfypxpy):
-    mask = _mask_by_color(rgb, [0, 0, 255], hsv_tolerance=np.array([10, 200, 200], np.uint8))
+    mask = _mask_by_color(
+        rgb, [0, 0, 255], hsv_tolerance=np.array([10, 200, 200], np.uint8))
     pixel_points = _image_pointcloud(depth, mask)
     obj_points = _meter_pointcloud(pixel_points, fxfypxpy)
     return obj_points, mask
@@ -114,7 +117,8 @@ def _mask_by_color(rgb, color, hsv_tolerance=np.array([10, 80, 80], np.uint8),
 
 
 def get_mask_by_color(rgb, color):
-    return _mask_by_color(rgb, color, np.array([1, 200, 200], np.uint8))  # hue tolerance should be 1
+    # hue tolerance should be 1
+    return _mask_by_color(rgb, color, np.array([1, 200, 200], np.uint8))
 
 
 def get_points_from_mask(mask, depth, fxfypxpy):
