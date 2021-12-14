@@ -80,6 +80,8 @@ def main():
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
         time.sleep(tau)
 
+        update_ball_marker(Rai, mk_ball)
+
         Rai.C.setFrameState(frame)
 
         q = Rai.C.getJointState()
@@ -91,8 +93,10 @@ def main():
     for t in range(200):
         time.sleep(0.01)
         q = Rai.S.get_q()
-        # some good old fashioned IK
         Rai.C.setJointState(q)  # set your robot model to match the real q
+
+        if t % 10 == 0:
+            update_ball_marker(Rai, mk_ball)
 
         y, _ = Rai.C.evalFeature(ry.FS.positionDiff, [gripper, mk_ball_name])
         distance = np.linalg.norm(y)
@@ -123,13 +127,15 @@ def main():
 
         Rai.C.setFrameState(frame)
 
+        update_ball_marker(Rai, mk_ball)
+
         q = Rai.C.getJointState()
 
-        print(Rai.S.getGripperIsGrasping(gripper))
-        if i > int(komo_length * 0.95):
+        if i >= int(komo_length) and Rai.S.getGripperIsGrasping(gripper):
             Rai.S.openGripper(gripper, speed=2.)
-            print(Rai.S.getGripperIsGrasping(gripper))
-            print(Rai.S.getGripperWidth(gripper))
+            if not Rai.S.getGripperIsGrasping(gripper):
+                print("RELEASED")
+                grasped = False
 
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
@@ -160,7 +166,7 @@ def komo_lift_and_throw(Rai, gripper):
 
     lift_position = [0.8, 0., 0.3]
 
-    throw_accel = [-1.0, 0., 1.3]
+    throw_accel = [-.6, 0., 1.2]
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(2., steps, duration, True)
