@@ -1,3 +1,5 @@
+
+from typing import List
 from lib.rai.rai_helper import set_frame_properties
 import libry as ry
 import os
@@ -27,22 +29,30 @@ class RaiEnv:
                  initSim=True,
                  initConfig=True,
                  simulatorEngine=ry.SimulatorEngine.physx,
-                 verboseSim=0):
+                 verboseSim=0,
+                 defaultCamera=True):
 
-        self.tau = tau
-
+        # assert input
         assert not useROS
         # assert type(useROS) is bool
-        self.useROS = useROS
-
         assert type(initConfig) is bool
-        self.initConfig = initConfig
-
         assert verboseSim in [0, 1, 2, True, False]
-        self.verboseSim = verboseSim
-
         assert type(simulatorEngine) is ry.SimulatorEngine
+        assert type(defaultCamera) is bool
+
+        # define fields
+        self.tau = tau
+        self.useROS = useROS
+        self.initConfig = initConfig
+        self.verboseSim = verboseSim
         self.simulatorEngine = simulatorEngine
+        self.defaultCamera = defaultCamera
+        self.RealWorld = None
+        self.C = None
+        self.S = None
+        self.D = None
+        self.cameras = {}
+        self.hasCameras = False
 
         # instantiate worlds
         project_path = os.path.dirname(
@@ -60,36 +70,20 @@ class RaiEnv:
     def _init_realWorld(self, env):
         self.RealWorld = ry.Config()
         self.RealWorld.addFile(env)
-        if not self.initConfig:
-            self._init_camera("camera")
+        if not self.initConfig and self.defaultCamera:
+            self.add_camera()
 
     def _init_simulation(self):
         self.S = self.RealWorld.simulation(
             self.simulatorEngine, self.verboseSim)
-        self.S.addSensor("camera")
 
     def _init_modelWorld(self, env):
         self.C = ry.Config()
         self.C.addFile(env)
         self.D = self.C.view()
-        self._init_camera("camera")
+        if self.defaultCamera:
+            self.add_camera()
         self._sort_C_frames()
-
-    def _init_camera(self, frame_name):
-        # camera settings
-
-        # set height and width
-        height = 480
-        width = 640
-
-        # the focal length
-        f = 0.895
-        f = f * height
-        fxfypxpy = [f, f, width / 2., height / 2.]
-
-        self.cameraFrame = self.RealWorld.getFrame(frame_name)
-        self.cameraInfo = RaiCameraInfo(
-            fxfypxpy, self.cameraFrame.getPosition(), self.cameraFrame.getQuaternion())
 
     # def _init_publishers(self):
     #     # init rospy node before publishers
@@ -127,11 +121,43 @@ class RaiEnv:
         assert len(self.C.getJointNames()) == len(self.rJoints) + \
             len(self.lJoints) + len(self.elseJoints)
 
-    def grab_camera_image(self):
+    def add_camera(self, cameraFrameName="camera", width=640, height=480, focalLength=0.895, zRange=[0.5, 30]):
+
+        self.hasCameras = True
+
+        self.S.addSensor(cameraFrameName, cameraFrameName,
+                         width, height, focalLength, zRange=zRange)
+
+        # the focal length configs
+        focalLength = focalLength * height
+        fxfypxpy = [focalLength, focalLength, width / 2., height / 2.]
+
+        # frame_name has to be in g-file or added to RealWord
+        cameraFrame = self.C.getFrame(cameraFrameName)
+        self.cameras[cameraFrameName] = RaiCamera(cameraFrameName, cameraFrame,
+                                                  fxfypxpy)
+
+        print("Added camera: {}".format(cameraFrameName))
+
+    def grab_camera_image(self, cameraName):
+
+        camera = self.cameras[cameraName]
+
+        self.S.selectSensor(cameraName)
         [rgb, depth] = self.S.getImageAndDepth()
-        points = self.S.depthData2pointCloud(depth, self.cameraInfo.fxfypxpy)
-        self.cameraFrame.setPointCloud(points, rgb)
-        return {"rgb": rgb, "depth": depth, "pointcloud": points}
+
+        return rgb, depth
+
+    def grab_pointcloud(self, cameraName, depth, rgb):
+
+        camera = self.cameras[cameraName]
+
+        points = self.S.depthData2pointCloud(
+            depth, camera.fxfypxpy)
+
+        camera.frame.setPointCloud(points, rgb)
+
+        return points
 
     # def publish_camera_topics(self, img):
     #     if not self.useROS: return
@@ -148,32 +174,18 @@ class RaiEnv:
     #     if not self.useROS: return
     #     self.joint_pub.publish(self.C.getJointNames(), q)
 
-    def run_simulation(self, steps=1000):
+    def run_simulation(self, steps=1000, updatePointCloud=True):
         for t in range(steps):
             time.sleep(self.tau)
 
             # grab sensor readings f:rom the simulation
             q = self.S.get_q()
-            if t % 10 == 0:
-                # we don't need images with 100Hz, rendering is slow
-                [rgb, depth] = self.S.getImageAndDepth()
-
-                # convert depth to point cloud, n*3 shape
-                points = self.S.depthData2pointCloud(
-                    depth, self.cameraInfo.fxfypxpy)
-
-                # setting shape of the camera frame to be equal to camera frame
-                # This will publish the point cloud in the configuration viewer
-                self.cameraFrame.setPointCloud(points, rgb)
-
-                # if len(rgb) > 0:
-                #    cv.imshow('OPENCV - rgb', rgb)
-                # if len(depth) > 0:
-                #    cv.imshow('OPENCV - depth', 0.5 * depth)
-
-                # if cv.waitKey(1) & 0xFF == ord('q'):
-                #    break
-
+            if t % 10 == 0 and self.hasCameras:
+                [rgb, depth] = self.grab_camera_image(
+                    list(self.cameras.keys())[0])
+                if updatePointCloud:
+                    self.grab_pointcloud(
+                        list(self.cameras.keys())[0], depth, rgb)
                 if self.useROS:
                     # publish images
                     self.publish_camera_topics([rgb, depth])
@@ -195,10 +207,24 @@ def filter_list(full_list, excludes):
     return list((x for x in full_list if x not in s))
 
 
-class RaiCameraInfo:
-    def __init__(self, fxfypxpy, translation, quaternion):
+class RaiCamera:
+    def __init__(self, cameraName, cameraFrame: ry.Frame, fxfypxpy):
+
+        # set name and rai-frame of camera
+        self.name = cameraName
+        self.frame = cameraFrame
+
+        translation = self.frame.getPosition()
+        quaternion = self.frame.getQuaternion()
+
+        # set configuration of camera
         self.fxfypxpy = fxfypxpy
         self.t = translation
         self.quaternion = Quaternion(quaternion).elements
         self.rot = Quaternion(quaternion).rotation_matrix
         self.pose = np.append(self.t, self.quaternion)
+
+    def transformPointsToRealWorld(self, points: np.array):
+        # points multiplied with inversed (transposed) rotation matrix
+        # and add translation
+        return points @ self.rot.T + self.t

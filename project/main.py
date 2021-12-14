@@ -20,7 +20,7 @@ from pyquaternion import Quaternion
 sys.path.append(RAI_PATH)
 
 import libry as ry
-from lib.rai.rai_env import RaiEnv
+from lib.rai.rai_env import RaiCamera, RaiEnv
 from lib.prediction.color_seg import find_ball
 
 
@@ -43,24 +43,26 @@ def main():
                  initSim=False,
                  initConfig=True,
                  simulatorEngine=ry.SimulatorEngine.bullet,
-                 verboseSim=1)
+                 verboseSim=1,
+                 defaultCamera=False)
 
     #########################################
     # init simulation                       #
     #########################################
     Rai._init_simulation()
 
-    # set initial position
-    # for meta in real_metadata:
-    #    frame = Rai.RealWorld.getFrame(meta["name"])
-    #    position = frame.getPosition()
-    #    position[1] = np.random.random(1)[0] * 0.6 + 0.5
-    #    frame.setPosition(position)
+    #########################################
+    # init cameras                          #
+    #########################################
+
+    Rai.add_camera("camera1", 640, 480, 0.8954)
+    Rai.add_camera("camera2", 640, 480, 0.8954)
+    Rai.add_camera("camera3", 640, 360, 0.8954)
 
     # inialize ball marker
     mk_ball_name = "mk_ball"
 
-    mk_ball = Rai.C.addFrame(mk_ball_name, "camera")
+    mk_ball = Rai.C.addFrame(mk_ball_name)
     mk_ball.setShape(ry.ST.marker, [.1])
     mk_ball.setColor([1., 0, 0])
 
@@ -68,7 +70,7 @@ def main():
 
     # input()
 
-    Rai.run_simulation(100)
+    Rai.run_simulation(100, False)
 
     update_ball_marker(Rai, mk_ball)
 
@@ -89,20 +91,18 @@ def main():
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
 
+    tau = .01
     # simulate to grasp
-    for t in range(200):
-        time.sleep(0.01)
+    for t in range(int(2 / tau)):
+        time.sleep(tau)
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
-
-        if t % 10 == 0:
-            update_ball_marker(Rai, mk_ball)
 
         y, _ = Rai.C.evalFeature(ry.FS.positionDiff, [gripper, mk_ball_name])
         distance = np.linalg.norm(y)
 
         if not gripping and (distance < .02):
-            Rai.S.closeGripper(gripper, speed=2.)
+            Rai.S.closeGripper(gripper, speed=10.)
             gripping = True
 
         if gripping and Rai.S.getGripperIsGrasping(gripper):
@@ -117,8 +117,8 @@ def main():
 
     #komo.view_play(False, 1)
 
+    # length for ball release in last frame
     komo_length = len(komo.getPathFrames())
-
     i = 0
     # execute komo path to the ball
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
@@ -126,13 +126,14 @@ def main():
         i += 1
 
         Rai.C.setFrameState(frame)
-
-        update_ball_marker(Rai, mk_ball)
+        if i % 4 == 0:
+            update_ball_marker(Rai, mk_ball)
 
         q = Rai.C.getJointState()
 
+        # release ball in last frame
         if i >= int(komo_length) and Rai.S.getGripperIsGrasping(gripper):
-            Rai.S.openGripper(gripper, speed=2.)
+            Rai.S.openGripper(gripper, speed=2., width=0.01)
             if not Rai.S.getGripperIsGrasping(gripper):
                 print("RELEASED")
                 grasped = False
@@ -140,33 +141,77 @@ def main():
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
 
-    Rai.run_simulation(200)
+        tau = .01
+    # simulate to grasp
+    for t in range(int(2 / tau)):
+        time.sleep(tau)
+        q = Rai.S.get_q()
+        Rai.C.setJointState(q)  # set your robot model to match the real q
+
+        if t % 30 == 0:
+            update_ball_marker(Rai, mk_ball)
+
+        # send velocity controls to the simulation
+        Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
+
+    print(Rai.S.getGripperWidth(gripper))
 
     input()
 
 
-def update_ball_marker(Rai, mk_ball, ball_color=[1., 0., 0.]):
-    # get image
-    img = Rai.grab_camera_image()
+def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 0., 0.]):
 
-    # color segment points of the ball
+    # color segment ball etc.
+    ball_position = get_ball_position(Rai, ball_color)
 
-    ball_points, _ = find_ball(ball_color, img["rgb"],
-                               img["depth"], Rai.cameraInfo.fxfypxpy)
-
-    esimanted_position_ball = ball_points.mean(axis=0)
-
-    mk_ball.setRelativePosition(esimanted_position_ball)
+    mk_ball.setPosition(ball_position)
 
 
-def komo_lift_and_throw(Rai, gripper):
+def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
+
+    # create list of cameras to use
+    if useAllCameras:
+        cameraList = list(Rai.cameras.keys())
+    else:
+        cameraList = [list(Rai.cameras.keys())[0]]
+
+    positions = []
+
+    # for each camera calcuate the extimated object position
+    for cameraName in cameraList:
+        camera: RaiCamera = Rai.cameras[cameraName]
+        # get image
+        rgb, depth = Rai.grab_camera_image(camera.name)
+
+        # color segment points of the ball
+        ball_points, _ = find_ball(ball_color, rgb,
+                                   depth, camera.fxfypxpy)
+
+        if len(ball_points) == 0:
+            # skip if no points where found
+            continue
+
+        # get center of points
+        rel_position = ball_points.mean(axis=0)
+        # transform to real world coordinates
+        positions.append(camera.transformPointsToRealWorld(rel_position))
+
+    if len(positions) == 0:
+        "Object cannot be tracked! Probably out of sigth."
+        return np.array([0, 0, 0])
+
+    # return averaged position
+    return np.array(positions).mean(axis=0)
+
+
+def komo_lift_and_throw(Rai: RaiEnv, gripper):
 
     duration = 0.5
     steps = 10
 
     lift_position = [0.8, 0., 0.3]
 
-    throw_accel = [-.6, 0., 1.2]
+    throw_accel = [-.6, 0., 1.3]
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(2., steps, duration, True)
@@ -174,7 +219,7 @@ def komo_lift_and_throw(Rai, gripper):
     komo.addObjective([1.],
                       ry.FS.position,
                       [gripper],
-                      ry.OT.eq,
+                      ry.OT.sos,
                       [1e2],
                       lift_position)
     komo.addObjective([0.9, 2.],
@@ -204,9 +249,9 @@ def komo_lift_and_throw(Rai, gripper):
     return komo
 
 
-def komo_to_obejct(Rai, gripper, object):
+def komo_to_obejct(Rai: RaiEnv, gripper, object):
 
-    duration = 1.
+    duration = .5
     steps = 10
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
@@ -216,7 +261,7 @@ def komo_to_obejct(Rai, gripper, object):
                       [gripper, object],
                       ry.OT.eq,
                       [1e2],
-                      [0., 0., 0.])
+                      [0., 0., -0.])
     komo.addObjective([0.9, 1.],
                       ry.FS.position,
                       [gripper],
@@ -243,101 +288,6 @@ def komo_to_obejct(Rai, gripper, object):
     komo.optimize()
 
     return komo
-
-
-def pickBall(C, gripper):
-    points = []
-    tau = .01
-
-    gripping = False
-    grasped = False
-
-    objectPosition = [0., 0., 0.]
-
-    for t in range(400):
-        time.sleep(0.01)
-        # grab sensor readings from the simulation
-        q = S.get_q()
-        if t % 10 == 0:
-            # we don't need images with 100Hz, rendering is slow
-            [rgb, depth] = S.getImageAndDepth()
-            points = S.depthData2pointCloud(depth, fxfypxpy)
-            cameraFrame.setPointCloud(points, rgb)
-
-            pos_bkp = objectPosition
-            # get points of ball with opencv
-            obj_points, mask = find_ball(rgb, depth, fxfypxpy)
-
-            # get position of ball with mean of points
-            objectPosition = obj_points
-
-            if np.isnan(objectPosition).any():
-                objectPosition = pos_bkp
-
-            # set the model object to percept (relative to camera because the position from the pointcloud is in camera coord.)
-            obj.setRelativePosition(objectPosition)
-
-        C.setJointState(q)  # set your robot model to match the real q
-
-        y, _ = C.evalFeature(ry.FS.positionDiff, [gripper, config_obj_name])
-        distance = np.linalg.norm(y)
-        # start grapsing here
-
-        if t > 40 and not gripping:
-            # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
-            komo = C.komo_path(1., 10, 3., True)
-            komo.add_qControlObjective([], 1, 1.)
-            komo.addObjective([1.],
-                              ry.FS.positionDiff,
-                              [gripper, config_obj_name],
-                              ry.OT.eq,
-                              [1e2],
-                              [0., -0., 0.])
-            komo.addObjective([1.],
-                              ry.FS.distance,
-                              [gripper, config_obj_name],
-                              ry.OT.sos,
-                              [1e2],
-                              [-.06])
-            komo.addObjective([1.],
-                              ry.FS.vectorZ,
-                              [gripper],
-                              ry.OT.sos,
-                              [1e2],
-                              [1.7, 0., 1])
-            komo.addObjective([1.],
-                              ry.FS.vectorX,
-                              [gripper],
-                              ry.OT.sos,
-                              [1e2],
-                              [0., 1., 0.])
-
-            # optimize
-            komo.optimize()
-
-            if distance < .2:
-                C.setFrameState(komo.getFrameState(
-                    max(9, int(9 - distance * 5 * 7))))
-            else:
-                C.setFrameState(komo.getFrameState(2))
-            # get joint states
-            q = C.getJointState()
-
-        if not gripping and (distance < .02):
-            S.closeGripper(gripper, speed=2.)
-            gripping = True
-
-        if gripping and (S.getGripperWidth(gripper) < .01):
-            gripping = False
-            S.openGripper(gripper, speed=2.)
-
-        if gripping and S.getGripperIsGrasping(gripper):
-            print("GRASPED!")
-            grasped = True
-            break
-
-        # send no controls to the simulation
-        Rai.S.step(q, tau, ry.ControlMode.position)
 
 
 if __name__ == '__main__':

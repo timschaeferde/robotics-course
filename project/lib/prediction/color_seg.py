@@ -102,11 +102,15 @@ def _mask_by_color(rgb, color, hsv_tolerance=np.array([10, 80, 80], np.uint8),
 
     # print(hsv_low, hsv_high)
 
-    mask = cv.inRange(hsv_img, hsv_low, hsv_high)
+    mask: np.array = cv.inRange(hsv_img, hsv_low, hsv_high)
     # if len(mask)>0: cv.imshow('OPENCV - mask',  mask)
 
     # create empty mask
     filtered_mask = np.zeros(mask.shape, np.uint8)
+
+    if not np.any(mask):
+        # print("camera cannot find object.")
+        return filtered_mask
 
     # find contours
     contours, _ = cv.findContours(mask, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
