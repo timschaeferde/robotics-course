@@ -184,6 +184,13 @@ def komo_lift_and_throw(Rai, gripper):
                       [1e2],
                       throw_accel,
                       order=1)
+    # smooth motions of robot here
+    komo.addObjective([1.],
+                      ry.FS.qItself,
+                      [],
+                      ry.OT.eq,
+                      [1e2],
+                      order=1)
 
     # optimize
     komo.optimize()
@@ -193,37 +200,38 @@ def komo_lift_and_throw(Rai, gripper):
 
 def komo_to_obejct(Rai, gripper, object):
 
-    duration = 1.5
-    steps = 15
+    duration = 1.
+    steps = 10
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(1., steps, duration, True)
-    # komo.add_qControlObjective([], 1, 1.)
     komo.addObjective([1.],
                       ry.FS.positionDiff,
                       [gripper, object],
                       ry.OT.eq,
                       [1e2],
                       [0., 0., 0.])
-    # komo.addObjective([1.],
-    #                  ry.FS.distance,
-    #                  [gripper, object],
-    #                  ry.OT.sos,
-    #                  [1e2],
-    #                  [.01])
     komo.addObjective([0.9, 1.],
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
                       [1e2],
-                      [0., 0., -0.1],
-                      order=2)
+                      [0., 0., -0.4],
+                      order=1)
     komo.addObjective([0.9, 1.],
                       ry.FS.vectorZ,
                       [gripper],
                       ry.OT.sos,
                       [1e2],
                       [0., 0., 1])
+
+    # smooth motions of robot here
+    komo.addObjective([1.],
+                      ry.FS.qItself,
+                      [],
+                      ry.OT.eq,
+                      [1e2],
+                      order=1)
 
     # optimize
     komo.optimize()
