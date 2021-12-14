@@ -76,6 +76,7 @@ def main():
 
     # komo.view_play(False, 1)
 
+    # execute komo path to the ball
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
         time.sleep(tau)
 
@@ -108,6 +109,33 @@ def main():
         # send velocity controls to the simulation
         Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.velocity)
 
+    komo = komo_lift_and_throw(Rai, gripper)
+
+    #komo.view_play(False, 1)
+
+    komo_length = len(komo.getPathFrames())
+
+    i = 0
+    # execute komo path to the ball
+    for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
+        time.sleep(tau)
+        i += 1
+
+        Rai.C.setFrameState(frame)
+
+        q = Rai.C.getJointState()
+
+        print(Rai.S.getGripperIsGrasping(gripper))
+        if i > int(komo_length * 0.95):
+            Rai.S.openGripper(gripper, speed=2.)
+            print(Rai.S.getGripperIsGrasping(gripper))
+            print(Rai.S.getGripperWidth(gripper))
+
+        # send position to the simulation
+        Rai.S.step(q, tau, ry.ControlMode.position)
+
+    Rai.run_simulation(200)
+
     input()
 
 
@@ -125,10 +153,48 @@ def update_ball_marker(Rai, mk_ball, ball_color=[1., 0., 0.]):
     mk_ball.setRelativePosition(esimanted_position_ball)
 
 
+def komo_lift_and_throw(Rai, gripper):
+
+    duration = 1
+    steps = 20
+
+    lift_position = [0.8, 0., 0.3]
+
+    throw_accel = [-0.9, 0., 1.9]
+
+    # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
+    komo = Rai.C.komo_path(2., steps, duration, True)
+    # komo.add_qControlObjective([], 1, 1.)
+    komo.addObjective([1.],
+                      ry.FS.position,
+                      [gripper],
+                      ry.OT.eq,
+                      [1e2],
+                      lift_position)
+    komo.addObjective([0.9, 1.],
+                      ry.FS.vectorY,
+                      [gripper],
+                      ry.OT.sos,
+                      [1e2],
+                      [-1., 0., 1])
+    komo.addObjective([1., 2.],
+                      ry.FS.position,
+                      [gripper],
+                      ry.OT.eq,
+                      [1e2],
+                      throw_accel,
+                      order=2)
+
+    # optimize
+    komo.optimize()
+
+    return komo
+
+
 def komo_to_obejct(Rai, gripper, object):
 
     duration = 1.5
-    steps = 20
+    steps = 15
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(1., steps, duration, True)
