@@ -42,6 +42,7 @@ class RaiEnv:
 
         # define fields
         self.tau = tau
+        self.time = 0
         self.useROS = useROS
         self.initConfig = initConfig
         self.verboseSim = verboseSim

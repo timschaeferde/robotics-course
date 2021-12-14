@@ -14,8 +14,6 @@ from config.CONFIG import *
 # changing working directory to the package location
 from pyquaternion import Quaternion
 
-from project.lib.tools.utils import position_loss
-
 
 # append Rai lib path
 
@@ -146,14 +144,18 @@ def main():
         Rai.S.step(q, tau, ry.ControlMode.position)
 
         tau = .01
-    # simulate to grasp
+
+    ballMotion = ProjectileMotion()
+
+    # simulate to see throw
     for t in range(int(2 / tau)):
         time.sleep(tau)
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
         if t % 10 == 0:
-            update_ball_marker(Rai, mk_ball)
+            position = update_ball_marker(Rai, mk_ball)
+            ballMotion.updatePosition(position, t * tau)
 
         # send velocity controls to the simulation
         Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
@@ -163,45 +165,47 @@ def main():
     input()
 
 
-class PojectileMotion:
-    def __init__(self, x0=None, y0=None, z0=None, t0=0, mass=None, gravity=9.81):
+class ProjectileMotion:
+    def __init__(self, position0=None, t0=0, mass=None, gravity=9.81):
         self.t0 = t0  # inital time in s
 
-        self.t = [self.t0]  # inital time in ms
-        self.x = [x0]  # x position in m
-        self.y = [y0]  # y position
-        self.z = [z0]  # z position
-        self.x_dot = [None]  # x velocity in m/s
-        self.y_dot = [None]  # y velocity
-        self.z_dot = [None]  # z velocity
-        self.x_dot_dot = [None]  # x acceleration in m/(s*s)
-        self.y_dot_dot = [None]  # y acceleration
-        self.z_dot_dot = [None]  # z acceleration
+        if position0 is None:
+            self.t = []  # inital time in ms
+            self.positions = []  # positions in m
+        else:
+            self.t = [self.t0]  # inital time in ms
+            self.positions = [position0]  # positions in m
+        self.velocities = []  # velocities in m/s
+        self.accelerations = []  # x accelerations in m/(s*s)
 
         self.m = mass  # mass
         self.g = gravity  # gravity
 
-    def updatePosition(self, x, y, z, t):
+    def updatePosition(self, position, t):
         self.t.append(t)
-        self.x.append(x)
-        self.y.append(y)
-        self.z.append(z)
+        self.positions.append(position)
+        self._updateVel()
 
-        self.x_dot.append()
-        self.y_dot.append()
-        self.z_dot.append()
-        self.x_dot_dot.append()
-        self.y_dot_dot.append()
-        self.z_dot_dot.append()
+    def _updateVel(self):
+        if len(self.positions) < 2:
+            return
+        for i in range(len(self.t) - 1):
+            vel = []
 
-    def calcVel(self):
-        for i in range(self.t.__len__ - 1):
-            # x direction
+            # skip already calulated ones
+            if i < len(self.velocities):
+                continue
+# in all 3 dimensions
+            for direction in range(3):
+                pos0 = self.positions[i][direction]
+                pos1 = self.positions[i + 1][direction]
+                timeDelta = (self.t[i + 1] - self.t[i])
 
-            pos0 = eval("self.{}[i]".format("x"))
-            pos1 = self.x[i + 1]
-            timeDelta = (self.t[i + 1] - self.t[i])
-            vel = (pos1 - pos0) / timeDelta
+                vel.append((pos1 - pos0) / timeDelta)
+            print(vel)
+            self.velocities.append(vel)
+
+        return
 
     def getPosition(self):
         sdfgs
@@ -213,6 +217,7 @@ def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 0., 0.]):
     ball_position = get_ball_position(Rai, ball_color)
 
     mk_ball.setPosition(ball_position)
+    return ball_position
 
 
 def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
