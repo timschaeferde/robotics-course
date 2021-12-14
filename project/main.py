@@ -155,12 +155,12 @@ def update_ball_marker(Rai, mk_ball, ball_color=[1., 0., 0.]):
 
 def komo_lift_and_throw(Rai, gripper):
 
-    duration = 1
-    steps = 20
+    duration = 0.5
+    steps = 10
 
     lift_position = [0.8, 0., 0.3]
 
-    throw_accel = [-0.9, 0., 1.9]
+    throw_accel = [-1.0, 0., 1.3]
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(2., steps, duration, True)
@@ -171,19 +171,19 @@ def komo_lift_and_throw(Rai, gripper):
                       ry.OT.eq,
                       [1e2],
                       lift_position)
-    komo.addObjective([0.9, 1.],
+    komo.addObjective([0.9, 2.],
                       ry.FS.vectorY,
                       [gripper],
                       ry.OT.sos,
-                      [1e2],
+                      [5e1],
                       [-1., 0., 1])
-    komo.addObjective([1., 2.],
+    komo.addObjective([1.2, 2.],
                       ry.FS.position,
                       [gripper],
-                      ry.OT.eq,
+                      ry.OT.sos,
                       [1e2],
                       throw_accel,
-                      order=2)
+                      order=1)
 
     # optimize
     komo.optimize()
