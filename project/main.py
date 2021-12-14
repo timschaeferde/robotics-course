@@ -14,6 +14,8 @@ from config.CONFIG import *
 # changing working directory to the package location
 from pyquaternion import Quaternion
 
+from project.lib.tools.utils import position_loss
+
 
 # append Rai lib path
 
@@ -32,6 +34,8 @@ def main():
     gripping = False
     grasped = False
     gripper = "R_gripper"
+
+    g = 9.81
 
     #########################################
     # initialize rai simulation here        #
@@ -148,7 +152,7 @@ def main():
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % 30 == 0:
+        if t % 10 == 0:
             update_ball_marker(Rai, mk_ball)
 
         # send velocity controls to the simulation
@@ -157,6 +161,50 @@ def main():
     print(Rai.S.getGripperWidth(gripper))
 
     input()
+
+
+class PojectileMotion:
+    def __init__(self, x0=None, y0=None, z0=None, t0=0, mass=None, gravity=9.81):
+        self.t0 = t0  # inital time in s
+
+        self.t = [self.t0]  # inital time in ms
+        self.x = [x0]  # x position in m
+        self.y = [y0]  # y position
+        self.z = [z0]  # z position
+        self.x_dot = [None]  # x velocity in m/s
+        self.y_dot = [None]  # y velocity
+        self.z_dot = [None]  # z velocity
+        self.x_dot_dot = [None]  # x acceleration in m/(s*s)
+        self.y_dot_dot = [None]  # y acceleration
+        self.z_dot_dot = [None]  # z acceleration
+
+        self.m = mass  # mass
+        self.g = gravity  # gravity
+
+    def updatePosition(self, x, y, z, t):
+        self.t.append(t)
+        self.x.append(x)
+        self.y.append(y)
+        self.z.append(z)
+
+        self.x_dot.append()
+        self.y_dot.append()
+        self.z_dot.append()
+        self.x_dot_dot.append()
+        self.y_dot_dot.append()
+        self.z_dot_dot.append()
+
+    def calcVel(self):
+        for i in range(self.t.__len__ - 1):
+            # x direction
+
+            pos0 = eval("self.{}[i]".format("x"))
+            pos1 = self.x[i + 1]
+            timeDelta = (self.t[i + 1] - self.t[i])
+            vel = (pos1 - pos0) / timeDelta
+
+    def getPosition(self):
+        sdfgs
 
 
 def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 0., 0.]):
