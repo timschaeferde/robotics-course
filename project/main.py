@@ -2,8 +2,6 @@
 # coding: utf-8
 
 
-import os
-import sys
 import time
 from datetime import datetime
 
@@ -11,13 +9,6 @@ import numpy as np
 
 from config.CONFIG import *
 
-# changing working directory to the package location
-from pyquaternion import Quaternion
-
-
-# append Rai lib path
-
-# sys.path.append(RAI_PATH)
 
 import lib.build.libry as ry
 from lib.rai.rai_env import RaiCamera, RaiEnv

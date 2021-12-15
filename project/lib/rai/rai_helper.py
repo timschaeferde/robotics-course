@@ -1,8 +1,3 @@
-import random
-import sys
-from config.CONFIG import *
-
-sys.path.append(RAI_PATH)
 import lib.build.libry as ry
 
 

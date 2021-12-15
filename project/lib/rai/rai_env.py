@@ -1,22 +1,22 @@
 
 from typing import List
-from lib.rai.rai_helper import set_frame_properties
-import lib.build.libry as ry
+
 import os
-import sys
 import time
 import cv2 as cv
 
 import numpy as np
 from pyquaternion import Quaternion
 
-from config.CONFIG import *
+import lib.build.libry as ry
+from lib.rai.rai_helper import set_frame_properties
+
 # import ros topic publishers
 # from lib.publisher.imgpub_all import ImagePublisher
 # from lib.publisher.joint_pub import JointPublisher
 # from lib.publisher.pointcloud2_pub import Pc2Publisher
 
-sys.path.append(RAI_PATH)
+
 # import rospy
 
 

@@ -1,4 +1,4 @@
-RAI_PATH = "/home/tim/git/robotics-course/build"
+#RAI_PATH = "/home/tim/git/robotics-course/build"
 #MRCNN_PATH = "/home/tim/workspace/Mask_RCNN"
 
 #MESH_PKG="rai_baxter"
