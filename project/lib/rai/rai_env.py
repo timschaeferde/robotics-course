@@ -1,7 +1,7 @@
 
 from typing import List
 from lib.rai.rai_helper import set_frame_properties
-import libry as ry
+import lib.build.libry as ry
 import os
 import sys
 import time
