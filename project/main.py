@@ -19,7 +19,7 @@ from pyquaternion import Quaternion
 
 # sys.path.append(RAI_PATH)
 
-import libry as ry
+import lib.libry as ry
 from lib.rai.rai_env import RaiCamera, RaiEnv
 from lib.prediction.color_seg import find_ball
 
