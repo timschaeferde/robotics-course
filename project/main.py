@@ -4,8 +4,10 @@
 
 import time
 from datetime import datetime
+from cv2 import mean
 
 import numpy as np
+from numpy.lib.function_base import average
 
 from config.CONFIG import *
 
@@ -58,12 +60,63 @@ def main():
 
     # start
 
-    # input()
-
     Rai.run_simulation(100, False)
 
-    update_ball_marker(Rai, mk_ball)
+    pickBall(Rai, gripper, mk_ball)
 
+    komo = komo_lift_and_throw(Rai, gripper)
+
+    # komo.view_play(False, 1)
+
+    # length for ball release in last frame
+    komo_length = len(komo.getPathFrames())
+    i = 0
+    # execute komo path to the ball
+    for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
+        time.sleep(tau)
+        i += 1
+
+        Rai.C.setFrameState(frame)
+        if i % 4 == 0:
+            update_ball_marker(Rai, mk_ball)
+
+        q = Rai.C.getJointState()
+
+        # release ball in last frame
+        if i >= int(komo_length) and Rai.S.getGripperIsGrasping(gripper):
+            Rai.S.openGripper(gripper, speed=2., width=0.01)
+            if not Rai.S.getGripperIsGrasping(gripper):
+                print("RELEASED")
+                grasped = False
+
+        # send position to the simulation
+        Rai.S.step(q, tau, ry.ControlMode.position)
+
+        tau = .01
+
+    ballMotion = ProjectileMotion()
+
+    # simulate to see throw
+    for t in range(int(1.5 / tau)):
+        time.sleep(tau)
+        q = Rai.S.get_q()
+        Rai.C.setJointState(q)  # set your robot model to match the real q
+
+        if t % 10 == 0:
+            position = update_ball_marker(Rai, mk_ball)
+            ballMotion.updatePosition(position, t * tau)
+
+            # send velocity controls to the simulation
+        Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
+
+    gripper = "L_gripper"
+
+    # pickBall(Rai, gripper, mk_ball)
+
+    input()
+
+
+def getBall(Rai, gripper, mk_ball_name):
     komo = komo_to_obejct(Rai, gripper, mk_ball_name)
 
     # komo.view_play(False, 1)
@@ -114,134 +167,86 @@ def main():
         # send velocity controls to the simulation
         Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
 
-    komo = komo_lift_and_throw(Rai, gripper)
-
-    # komo.view_play(False, 1)
-
-    # length for ball release in last frame
-    komo_length = len(komo.getPathFrames())
-    i = 0
-    # execute komo path to the ball
-    for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        time.sleep(tau)
-        i += 1
-
-        Rai.C.setFrameState(frame)
-        if i % 4 == 0:
-            update_ball_marker(Rai, mk_ball)
-
-        q = Rai.C.getJointState()
-
-        # release ball in last frame
-        if i >= int(komo_length) and Rai.S.getGripperIsGrasping(gripper):
-            Rai.S.openGripper(gripper, speed=2., width=0.01)
-            if not Rai.S.getGripperIsGrasping(gripper):
-                print("RELEASED")
-                grasped = False
-
-        # send position to the simulation
-        Rai.S.step(q, tau, ry.ControlMode.position)
-
-        tau = .01
-
-    ballMotion = ProjectileMotion()
-
-    # simulate to see throw
-    for t in range(int(1.5 / tau)):
-        time.sleep(tau)
-        q = Rai.S.get_q()
-        Rai.C.setJointState(q)  # set your robot model to match the real q
-
-        if t % 10 == 0:
-            position = update_ball_marker(Rai, mk_ball)
-            ballMotion.updatePosition(position, t * tau)
-
-            # send velocity controls to the simulation
-        Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
-
-    gripper = "L_gripper"
-
-    #pickBall(Rai, gripper, mk_ball)
-
-    input()
-
 
 def pickBall(Rai, gripper, mk_ball):
-    points = []
+
     tau = .01
 
     gripping = False
     grasped = False
 
-    objectPosition = [0., 0., 0.]
-
     config_obj_name = mk_ball.getName()
 
-    for t in range(400):
-        time.sleep(0.01)
+    duration = 4
+
+    for t in range(int(duration / tau)):
+        time.sleep(tau)
         # grab sensor readings from the simulation
         q = Rai.S.get_q()
-
-        update_ball_marker(Rai, mk_ball)
-
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
+        if t % 10 == 0:
+            update_ball_marker(Rai, mk_ball)
+
+        # get distance
         y, _ = Rai.C.evalFeature(ry.FS.positionDiff, [
             gripper, config_obj_name])
         distance = np.linalg.norm(y)
-        # start grapsing here
 
-        if t > 20 and not gripping:
+        if t % 4 == 0 and not gripping:
+            # start grapsing here
+            komo_phase = 1.
+            komo_steps = 10
+            komo_duration = 0.5
+
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
-            komo = Rai.C.komo_path(1., 10, .5, True)
-            komo.add_qControlObjective([], 1, 1.)
-            komo.addObjective([1.],
+            komo = Rai.C.komo_path(
+                komo_phase, komo_steps, komo_duration, True)
+            komo.add_qControlObjective([],
+                                       1,
+                                       1e0)
+            komo.addObjective([komo_phase],
                               ry.FS.positionDiff,
                               [gripper, config_obj_name],
                               ry.OT.eq,
                               [1e2],
-                              [0., -0., 0.])
-            komo.addObjective([0.9, 1.],
+                              [0., 0., 0.])
+            komo.addObjective([0.9 * komo_phase, komo_phase],
                               ry.FS.scalarProductZZ,
                               [gripper, "world"],
                               ry.OT.sos,
                               [1e1],
                               [1.])
-
-            komo.addObjective([], ry.FS.accumulatedCollisions,
-                              [], ry.OT.ineq, [1e2], [-.0])
-
-            # smooth motions of robot here
-            komo.addObjective([1.],
-                              ry.FS.qItself,
+            # avoid collisions
+            komo.addObjective([],
+                              ry.FS.accumulatedCollisions,
                               [],
-                              ry.OT.eq,
+                              ry.OT.ineq,
                               [1e2],
-                              order=1)
+                              [0.])
 
             # optimize
             komo.optimize()
 
-            if distance < .2:
-                Rai.C.setFrameState(komo.getFrameState(
-                    max(9, int(9 - distance * 5 * 7))))
-            else:
-                Rai.C.setFrameState(komo.getFrameState(2))
-            # get joint states
-            q = Rai.C.getJointState()
+        # select frame
+        Rai.C.setFrameState(komo.getFrameState(
+            min(5, max(9, 9 - int(distance * 2)))))
+
+        # get joint states
+        q = Rai.C.getJointState()
 
         if not gripping and (distance < .02):
             Rai.S.closeGripper(gripper, speed=20.)
             gripping = True
 
-        # if gripping and (Rai.S.getGripperWidth(gripper) < .001):
-        #    gripping = False
-        #    Rai.S.openGripper(gripper, speed=20.)
-
         if gripping and Rai.S.getGripperIsGrasping(gripper):
             print("GRASPED!")
             grasped = True
             break
+
+        if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
+            gripping = False
+            Rai.S.openGripper(gripper, speed=20.)
 
         # send no controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
@@ -259,16 +264,25 @@ class ProjectileMotion:
             self.positions = [position0]  # positions in m
 
         self.velocities = []  # velocities in m/s
-        self.accelerations = []  # x accelerations in m/(s*s)
+        self.mean_velocity = []  # mean_velocity in m/s
+        self.accelerations = []  # accelerations in m/(s*s)
+        self.mean_acceleration = []  # mean_acceleration in m/(s*s)
+
+        # self.flying = True  # Not in use yet
 
         self.m = mass  # mass
         self.g = gravity  # gravity
 
     def updatePosition(self, position, t):
+
+        pred = self.getPosition(t)
         self.t.append(t)
         self.positions.append(position)
         self._updateVel()
         self._updateAccel()
+        if pred is not None:
+            error = np.linalg.norm(position - pred)
+            print("Error in m: {:.5f}".format(error))
 
     def _updateVel(self):
         if len(self.positions) < 2:
@@ -286,27 +300,9 @@ class ProjectileMotion:
                 timeDelta = (self.t[i + 1] - self.t[i])
 
                 vel.append((pos1 - pos0) / timeDelta)
-            print(vel)
+            #print("Vel: \t" + str(vel))
             self.velocities.append(vel)
-
-    def _updateVel(self):
-        if len(self.positions) < 2:
-            return
-        for i in range(len(self.t) - 1):
-            vel = []
-
-            # skip already calulated ones
-            if i < len(self.velocities):
-                continue
-            # in all 3 dimensions
-            for direction in range(3):
-                pos0 = self.positions[i][direction]
-                pos1 = self.positions[i + 1][direction]
-                timeDelta = (self.t[i + 1] - self.t[i])
-
-                vel.append((pos1 - pos0) / timeDelta)
-            print("Vel: \t" + str(vel))
-            self.velocities.append(vel)
+            self.mean_velocity = np.array(average(self.velocities, axis=0))
         return
 
     def _updateAccel(self):
@@ -325,18 +321,26 @@ class ProjectileMotion:
                 timeDelta = (self.t[i + 2] - self.t[i + 1])
 
                 accel.append((pos1 - pos0) / timeDelta)
-            print("Accel: \t" + str(accel))
+            #print("Accel: \t" + str(accel))
             self.accelerations.append(accel)
+            self.mean_acceleration = np.array(
+                average(self.accelerations, axis=0))
         return
 
+    # formulas form: https://en.wikipedia.org/wiki/Projectile_motion
     def getPosition(self, time):
-        return
+        if len(self.velocities) < 1:
+            return
+        delta_t = (time - self.t[-1])
+        return np.array(self.positions[-1]) + self.getVelosity(time) * delta_t
 
     def getVelosity(self, time):
-        return
+        if len(self.velocities) < 1:
+            return
+        return np.array(self.velocities[-1] + self.getAccelerlation(time) * (time - self.t[-1]))
 
     def getAccelerlation(self, time):
-        return [0., 0., -self.g]
+        return np.array([0., 0., -self.g])
 
 
 def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
@@ -365,7 +369,7 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
         rgb, depth = Rai.grab_camera_image(camera.name)
 
         # uncomment to update pointcloud (but this is slow!)
-        #Rai.grab_pointcloud(camera.name, depth, rgb)
+        # Rai.grab_pointcloud(camera.name, depth, rgb)
 
         # color segment points of the ball
         ball_points, _ = find_ball(ball_color, rgb,
@@ -380,7 +384,7 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
         positions.append(camera.transformPointsToRealWorld(rel_position))
 
     if len(positions) == 0:
-        #print("Object cannot be tracked! Probably out of sigth.")
+        # print("Object cannot be tracked! Probably out of sigth.")
         return np.array([0, 0, 0])
 
     # return averaged position
@@ -392,38 +396,33 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper):
     duration = 0.5
     steps = 10
 
-    lift_position = [0.8, 0., 0.3]
+    lift_position = [0.85, 0., 0.2]
 
-    throw_accel = [-.6, 0.05, 1.3]
+    throw_accel = [-.6, 0.05, 1.35]
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(2., steps, duration, True)
-    # komo.add_qControlObjective([], 1, 1.)
+    komo.add_qControlObjective([],
+                               1,
+                               1e1)
     komo.addObjective([1.],
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
-                      [1e2],
+                      [1e1],
                       lift_position)
-    komo.addObjective([0.9, 2.],
+    komo.addObjective([1.6, 2.],
                       ry.FS.vectorX,
                       [gripper],
                       ry.OT.sos,
                       [1e1],
                       [-0., 1., 0])
-    komo.addObjective([1.2, 2.],
+    komo.addObjective([1.4, 2.],
                       ry.FS.position,
                       [gripper],
                       ry.OT.eq,
                       [1e2],
                       throw_accel,
-                      order=1)
-    # smooth motions of robot here
-    komo.addObjective([1.],
-                      ry.FS.qItself,
-                      [],
-                      ry.OT.eq,
-                      [1e2],
                       order=1)
 
     # optimize
@@ -458,14 +457,6 @@ def komo_to_obejct(Rai: RaiEnv, gripper, object):
                       ry.OT.sos,
                       [1e2],
                       [0., 0., 1])
-
-    # smooth motions of robot here
-    komo.addObjective([1.],
-                      ry.FS.qItself,
-                      [],
-                      ry.OT.eq,
-                      [1e2],
-                      order=1)
 
     # optimize
     komo.optimize()
