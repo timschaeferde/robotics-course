@@ -246,6 +246,7 @@ class ProjectileMotion:
         else:
             self.t = [self.t0]  # inital time in ms
             self.positions = [position0]  # positions in m
+
         self.velocities = []  # velocities in m/s
         self.accelerations = []  # x accelerations in m/(s*s)
 
@@ -256,6 +257,7 @@ class ProjectileMotion:
         self.t.append(t)
         self.positions.append(position)
         self._updateVel()
+        self._updateAccel()
 
     def _updateVel(self):
         if len(self.positions) < 2:
@@ -266,7 +268,7 @@ class ProjectileMotion:
             # skip already calulated ones
             if i < len(self.velocities):
                 continue
-# in all 3 dimensions
+            # in all 3 dimensions
             for direction in range(3):
                 pos0 = self.positions[i][direction]
                 pos1 = self.positions[i + 1][direction]
@@ -276,10 +278,54 @@ class ProjectileMotion:
             print(vel)
             self.velocities.append(vel)
 
+    def _updateVel(self):
+        if len(self.positions) < 2:
+            return
+        for i in range(len(self.t) - 1):
+            vel = []
+
+            # skip already calulated ones
+            if i < len(self.velocities):
+                continue
+            # in all 3 dimensions
+            for direction in range(3):
+                pos0 = self.positions[i][direction]
+                pos1 = self.positions[i + 1][direction]
+                timeDelta = (self.t[i + 1] - self.t[i])
+
+                vel.append((pos1 - pos0) / timeDelta)
+            print("Vel: \t" + str(vel))
+            self.velocities.append(vel)
         return
 
-    def getPosition(self):
+    def _updateAccel(self):
+        if len(self.velocities) < 2:
+            return
+        for i in range(len(self.t) - 2):
+            accel = []
+
+            # skip already calulated ones
+            if i < len(self.accelerations):
+                continue
+            # in all 3 dimensions
+            for direction in range(3):
+                pos0 = self.velocities[i][direction]
+                pos1 = self.velocities[i + 1][direction]
+                timeDelta = (self.t[i + 2] - self.t[i + 1])
+
+                accel.append((pos1 - pos0) / timeDelta)
+            print("Accel: \t" + str(accel))
+            self.accelerations.append(accel)
         return
+
+    def getPosition(self, time):
+        return
+
+    def getVelosity(self, time):
+        return
+
+    def getAccelerlation(self, time):
+        return [0., 0., -self.g]
 
 
 def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
