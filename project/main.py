@@ -68,15 +68,26 @@ def main():
 
     # komo.view_play(False, 1)
 
-    # execute komo path to the ball
-    for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
+    # length for ball release in last frame
+    komo_length = komo.getT()
+    komo_frames = komo.getPathFrames()
+    komo_tau = komo.getPathTau()
+    i = 0
+    tau = 0.01
+    # execute komo path to the ball (smooth)
+    for t in range(int(komo_tau.sum() / tau)):
         time.sleep(tau)
+        q = Rai.S.get_q()
 
-        update_ball_marker(Rai, mk_ball)
+        i = min(komo_length - 1, int((t) *
+                tau / sum(komo_tau) * komo_length))
+
+        frame = komo_frames[i]
 
         Rai.C.setFrameState(frame)
-
-        q = Rai.C.getJointState()
+        q_frame = Rai.C.getJointState()
+        # interpolate to next joint state
+        q += (q_frame - q) * ((t * tau % komo_tau[i]) / komo_tau[i])
 
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
