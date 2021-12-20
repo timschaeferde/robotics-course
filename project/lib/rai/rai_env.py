@@ -59,8 +59,10 @@ class RaiEnv:
         project_path = os.path.dirname(
             os.path.abspath(__file__)) + "/../../../"
         self._init_realWorld(project_path + realEnv)
+
         if initSim:
             self._init_simulation()
+
         if self.initConfig:
             self._init_modelWorld(project_path + modelEnv)
 
