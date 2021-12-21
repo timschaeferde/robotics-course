@@ -54,8 +54,9 @@ def main():
     mk_ball_name = "mk_ball"
 
     mk_ball = Rai.C.addFrame(mk_ball_name)
-    mk_ball.setShape(ry.ST.marker, [.1])
-    mk_ball.setColor([1., 1., 0])
+    mk_ball.setShape(ry.ST.sphere, [.03])
+    mk_ball.setColor([0., 1., 0])
+    mk_ball.setContact(1)
 
     # start
 
@@ -64,6 +65,55 @@ def main():
     pickBall(Rai, gripper, mk_ball)
 
     komo = komo_lift_and_throw(Rai, gripper)
+
+    # length for ball release in last frame
+    komo_length = len(komo.getPathFrames())
+    i = 0
+    # execute komo path to the ball
+    for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
+        time.sleep(tau)
+        i += 1
+
+        Rai.C.setFrameState(frame)
+        if i % 4 == 0:
+            update_ball_marker(Rai, mk_ball)
+
+        q = Rai.C.getJointState()
+
+        # release ball in last frame
+        if i >= int(komo_length) and Rai.S.getGripperIsGrasping(gripper):
+            Rai.S.openGripper(gripper, speed=2., width=0.01)
+            if not Rai.S.getGripperIsGrasping(gripper):
+                print("RELEASED")
+                grasped = False
+                break
+
+        # send position to the simulation
+        Rai.S.step(q, tau, ry.ControlMode.position)
+
+    tau = .01
+    duration = 1.5
+    ballMotion = ProjectileMotion()
+
+    # simulate to see throw
+    for t in range(int(duration / tau)):
+        time.sleep(tau)
+        q = Rai.S.get_q()
+        Rai.C.setJointState(q)  # set your robot model to match the real q
+
+        if t % 10 == 0:
+            position = update_ball_marker(Rai, mk_ball)
+            ballMotion.updatePosition(position, t * tau)
+
+            # send velocity controls to the simulation
+        Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
+
+    gripper = "L_gripper"
+
+    pickBall(Rai, gripper, mk_ball)
+
+    komo = komo_lift_and_throw(
+        Rai, gripper, throw_accel=[.3, 0.04, .9], lift_position=[-0.85, 0., 0.2])
 
     # komo.view_play(False, 1)
 
@@ -87,16 +137,17 @@ def main():
             if not Rai.S.getGripperIsGrasping(gripper):
                 print("RELEASED")
                 grasped = False
+                break
 
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
 
-        tau = .01
-
+    tau = .01
+    duration = 1.5
     ballMotion = ProjectileMotion()
 
     # simulate to see throw
-    for t in range(int(1.5 / tau)):
+    for t in range(int(duration / tau)):
         time.sleep(tau)
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
@@ -105,66 +156,10 @@ def main():
             position = update_ball_marker(Rai, mk_ball)
             ballMotion.updatePosition(position, t * tau)
 
-            # send velocity controls to the simulation
-        Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
-
-    gripper = "L_gripper"
-
-    # pickBall(Rai, gripper, mk_ball)
-
-    input()
-
-
-def getstaticBall(Rai, gripper, mk_ball_name):
-    komo = komo_to_obejct(Rai, gripper, mk_ball_name)
-
-    # komo.view_play(False, 1)
-
-    # length for ball release in last frame
-    komo_length = komo.getT()
-    komo_frames = komo.getPathFrames()
-    komo_tau = komo.getPathTau()
-    i = 0
-    tau = 0.01
-    # execute komo path to the ball (smooth)
-    for t in range(int(komo_tau.sum() / tau)):
-        time.sleep(tau)
-        q = Rai.S.get_q()
-
-        i = min(komo_length - 1, int((t) *
-                tau / sum(komo_tau) * komo_length))
-
-        frame = komo_frames[i]
-
-        Rai.C.setFrameState(frame)
-        q_frame = Rai.C.getJointState()
-        # interpolate to next joint state
-        q += (q_frame - q) * ((t * tau % komo_tau[i]) / komo_tau[i])
-
-        # send position to the simulation
-        Rai.S.step(q, tau, ry.ControlMode.position)
-
-    tau = .01
-    # simulate to grasp
-    for t in range(int(2 / tau)):
-        time.sleep(tau)
-        q = Rai.S.get_q()
-        Rai.C.setJointState(q)  # set your robot model to match the real q
-
-        y, _ = Rai.C.evalFeature(ry.FS.positionDiff, [gripper, mk_ball_name])
-        distance = np.linalg.norm(y)
-
-        if not gripping and (distance < .02):
-            Rai.S.closeGripper(gripper, speed=10.)
-            gripping = True
-
-        if gripping and Rai.S.getGripperIsGrasping(gripper):
-            print("GRASPED!")
-            grasped = True
-            break
-
         # send velocity controls to the simulation
         Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
+
+    input()
 
 
 def pickBall(Rai, gripper, mk_ball):
@@ -184,26 +179,27 @@ def pickBall(Rai, gripper, mk_ball):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % 10 == 0:
+        if t % 1 == 0:
             update_ball_marker(Rai, mk_ball)
 
         # get distance
-        y, _ = Rai.C.evalFeature(ry.FS.positionDiff, [
-            gripper, config_obj_name])
-        distance = np.linalg.norm(y)
+        distance = abs(Rai.C.evalFeature(ry.FS.distance, [
+            gripper, config_obj_name])[0][0])
 
-        if t % 4 == 0 and not gripping:
+        print(distance)
+
+        if t % 1 == 0 and not gripping:
             # start grapsing here
             komo_phase = 1.
             komo_steps = 10
-            komo_duration = 0.5
+            komo_duration = 0.5  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
                 komo_phase, komo_steps, komo_duration, True)
             komo.add_qControlObjective([],
                                        1,
-                                       1e0)
+                                       1e1)
             komo.addObjective([komo_phase],
                               ry.FS.positionDiff,
                               [gripper, config_obj_name],
@@ -234,7 +230,7 @@ def pickBall(Rai, gripper, mk_ball):
         # get joint states
         q = Rai.C.getJointState()
 
-        if not gripping and (distance < .02):
+        if not gripping and (distance < .015):
             Rai.S.closeGripper(gripper, speed=20.)
             gripping = True
 
@@ -242,10 +238,10 @@ def pickBall(Rai, gripper, mk_ball):
             print("GRASPED!")
             grasped = True
             break
-
-        if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
-            gripping = False
-            Rai.S.openGripper(gripper, speed=20.)
+        print(Rai.S.getGripperWidth(gripper))
+        # if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
+        #    gripping = False
+        #    Rai.S.openGripper(gripper, speed=20.)
 
         # send no controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
@@ -299,33 +295,29 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
     return np.array(positions).mean(axis=0)
 
 
-def komo_lift_and_throw(Rai: RaiEnv, gripper):
+def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_accel=[-.3, 0.04, .9], lift_position=[0.85, 0., 0.2]):
 
-    duration = 0.5
+    duration = 1.
     steps = 10
 
-    lift_position = [0.85, 0., 0.2]
-
-    throw_accel = [-.6, 0.05, 1.35]
-
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
-    komo = Rai.C.komo_path(2., steps, duration, True)
+    komo = Rai.C.komo_path(3., steps, duration, True)
     komo.add_qControlObjective([],
                                1,
                                1e1)
-    komo.addObjective([1.],
+    komo.addObjective([2.4],
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
-                      [1e1],
+                      [1e2],
                       lift_position)
-    komo.addObjective([1.6, 2.],
+    komo.addObjective([2.7, 3.],
                       ry.FS.vectorX,
                       [gripper],
                       ry.OT.sos,
                       [1e1],
                       [-0., 1., 0])
-    komo.addObjective([1.4, 2.],
+    komo.addObjective([2.4, 3.],
                       ry.FS.position,
                       [gripper],
                       ry.OT.eq,

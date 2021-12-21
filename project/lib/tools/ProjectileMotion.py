@@ -89,3 +89,6 @@ class ProjectileMotion:
 
     def getAccelerlation(self, time):
         return np.array([0., 0., -self.g])
+
+    def getTimeOfArival(self, value, axis=0):
+        return

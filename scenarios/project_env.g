@@ -4,25 +4,25 @@ world {}
 
 wall1 (world){
     shape:ssBox, Q:<t(-1.6 0. .8) d(90 0 1 0)>, size:[1.7 2. .05 .02], color:[.3 .3 .3]
-    contact, logical:{ }
+    contact:1, logical:{ }
     friction:.1
 }
 
 wall2 (world){
     shape:ssBox, Q:<t(1.6 0. .8) d(90 0 1 0)>, size:[1.7 2. .05 .02], color:[.3 .3 .3]
-    contact, logical:{ }
+    contact:1, logical:{ }
     friction:.1
 }
 
 wall3 (world){
     shape:ssBox, Q:<t(0. -.9 .35) d(90 1 0 0)>, size:[3.5 0.8 .05 .02], color:[.3 .3 .3]
-    contact, logical:{ }
+    contact:1, logical:{ }
     friction:.1
 }
 
 wall4 (world){
     shape:ssBox, Q:<t(0. .9 .35) d(90 1 0 0)>, size:[3.5 0.8 .05 .02], color:[.3 .3 .3]
-    contact, logical:{ }
+    contact:1, logical:{ }
     friction:.1
 }
 
@@ -33,8 +33,12 @@ wall4 (world){
 Prefix: "L_"
 Include: '../rai-robotModels/scenarios/panda_fixGripper.g'
 
+Delete L_panda_coll0b
+
 Prefix: "R_"
 Include: '../rai-robotModels/scenarios/panda_fixGripper.g'
+
+Delete R_panda_coll0b
 
 Prefix!
         
