@@ -170,12 +170,12 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         # get distance
         distance = abs(Rai.C.evalFeature(ry.FS.distance, [
             gripper, config_obj_name])[0][0])
-        print(distance)
+        # print(distance)
 
         if t % (1 * tau) == 0 and not gripping:
             # start grapsing here
             komo_phase = 1.
-            komo_steps = 10
+            komo_steps = max(1, int(4 * distance))
             komo_duration = 0.5  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
@@ -208,10 +208,8 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
             komo.optimize()
 
         # select frame
-        if distance < .2:
-            Rai.C.setFrameState(komo.getPathFrames()[-1])
-        else:
-            Rai.C.setFrameState(komo.getFrameState(4))
+
+        Rai.C.setFrameState(komo.getPathFrames()[0])
 
         # get joint states
         q = Rai.C.getJointState()
