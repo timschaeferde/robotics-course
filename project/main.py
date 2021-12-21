@@ -297,27 +297,31 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
 
 def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_accel=[-.3, 0.04, .9], lift_position=[0.85, 0., 0.2]):
 
-    duration = 1.
-    steps = 10
+    komo_phase = 3.
+    komo_steps = 10
+    komo_duration = 1.0
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
-    komo = Rai.C.komo_path(3., steps, duration, True)
+    komo = Rai.C.komo_path(komo_phase, komo_steps, komo_duration, 2)
+
+    throwing_time = 2.4
+
     komo.add_qControlObjective([],
                                1,
                                1e1)
-    komo.addObjective([2.4],
+    komo.addObjective([throwing_time],
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
                       [1e2],
                       lift_position)
-    komo.addObjective([2.7, 3.],
+    komo.addObjective([throwing_time, 3.],
                       ry.FS.vectorX,
                       [gripper],
                       ry.OT.sos,
-                      [1e1],
-                      [-0., 1., 0])
-    komo.addObjective([2.4, 3.],
+                      [1e2],
+                      [0., 1., 0.])
+    komo.addObjective([throwing_time, 3.],
                       ry.FS.position,
                       [gripper],
                       ry.OT.eq,
