@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from typing import List
 
 import os
@@ -178,8 +179,12 @@ class RaiEnv:
     #     self.joint_pub.publish(self.C.getJointNames(), q)
 
     def run_simulation(self, steps=1000, updatePointCloud=True):
+        old_time = datetime.now()
         for t in range(steps):
-            time.sleep(self.tau)
+            now = datetime.now()
+            delta = (now - old_time).total_seconds()
+            time.sleep(max(0, self.tau - delta))
+            old_time = datetime.now()
 
             # grab sensor readings f:rom the simulation
             q = self.S.get_q()
