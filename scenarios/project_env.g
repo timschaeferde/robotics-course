@@ -1,13 +1,6 @@
 world {}
 
 
-bottom (world){
-    shape:ssBox, Q:<t(0. 0. -0.11)>, size:[4. 2. .20 .02], color:[.3 .3 .3]
-    contact:1, logical:{ }
-    friction:.1
-}
-
-
 ### walls
 
 wall1 (world){
@@ -23,13 +16,13 @@ wall2 (world){
 }
 
 wall3 (world){
-    shape:ssBox, Q:<t(0. -.85 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. -.8 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall4 (world){
-    shape:ssBox, Q:<t(0. .85 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. .8 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
@@ -68,11 +61,11 @@ camera3(world){
     shape:marker, size:[.2]}
 
 camera4(world){
-    Q:<t(1.55 -.75 0.2) d(180 0 0 1)  d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0)>,
+    Q:<t(1.55 -.7 0.2) d(180 0 0 1)  d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0)>,
     shape:marker, size:[.3]}
 
 camera5(world){
-    Q:<t(-1.55 .75 0.2) d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0) >,
+    Q:<t(-1.55 .7 0.2) d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0) >,
     shape:marker, size:[.3]}
 ### ball
 

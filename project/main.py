@@ -61,7 +61,7 @@ def main():
     Rai.run_simulation(50, False)
     for f in range(5):
         gripper = "L_gripper"
-        throw_velocity = [-.26, 0.05, .85]
+        throw_velocity = [-.36, 0.05, .75]
         lift_position = [0.85, 0., 0.2]
 
         pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
@@ -85,7 +85,7 @@ def main():
 
         gripper = "R_gripper"
 
-        throw_velocity = [.26, 0.05, .85]
+        throw_velocity = [.36, 0.05, .75]
         lift_position = [-0.85, 0., 0.2]
 
         pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
@@ -177,22 +177,31 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         update_ball_marker(Rai, mk_ball)
 
         # get distance
-        #distance = abs(Rai.C.evalFeature(ry.FS.distance, [
-        #    gripper, config_obj_name])[0][0])
         distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition()-Rai.C.getFrame(config_obj_name).getPosition())
         # print(distance)
 
-        if t % 1  == 0:
+        gripping_distance = 0.02
+
+        if not gripping and (distance <= gripping_distance):
+            Rai.S.closeGripper(gripper, speed=20.)
+            gripping = True
+        elif gripping and (Rai.S.getGripperWidth(gripper) < .001) and (distance > gripping_distance):
+            gripping = False
+            Rai.S.openGripper(gripper, speed=20.)
+        
+        
+
+        if t % 1  == 0 and not gripping:
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(1, int(5 * distance))
-            komo_duration = 0.1 * komo_steps  # * distance
+            komo_steps = max(1, int(6 * distance))
+            komo_duration = 0.05 * komo_steps  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
                 komo_phase, komo_steps, komo_duration, True)
             komo.clearObjectives()
-            #komo.addTimeOptimization()
+            komo.addTimeOptimization()
             komo.add_qControlObjective([],
                                        1,
                                        1e1)
@@ -206,14 +215,14 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
                               ry.FS.vectorZ,
                               [gripper],
                               ry.OT.sos,
-                              [1e1],
+                              [2e0],
                               [0, 0, 1.])
             # avoid collisions
             komo.addObjective([],
                               ry.FS.accumulatedCollisions,
                               [],
                               ry.OT.ineq,
-                              [1e1],
+                              [1e0],
                               [0.])
 
             # optimize
@@ -226,16 +235,6 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
         # get joint states
         q = Rai.C.getJointState()
-
-        # print(Rai.S.getGripperWidth(gripper))
-        if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
-            gripping = False
-            Rai.S.openGripper(gripper, speed=20.)
-        
-        if not gripping and (distance < .02):
-            Rai.S.closeGripper(gripper, speed=20.)
-            gripping = True
-
 
         # send controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
@@ -318,20 +317,8 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
-                      [1e2],
+                      [1e1],
                       lift_position)
-    #komo.addObjective([throwing_time + 0.2, 3.],
-    #                  ry.FS.vectorY,
-    #                  [gripper],
-    #                  ry.OT.sos,
-    #                  [1e2],
-    #                  throw_velocity)
-    #komo.addObjective([throwing_time + 0.2, 3.],
-    #                  ry.FS.vectorX,
-    #                  [gripper],
-    #                  ry.OT.sos,
-    #                  [1e2],
-    #                  [0, 1, 0])
     komo.addObjective([throwing_time, 3.],
                       ry.FS.position,
                       [gripper],
@@ -347,7 +334,7 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       [1e2],
                       #[-0.04965219, -0.55857035, -0.02696226, -1.70212158,  0.03394528, 1.82795503,  0.71206629,  0.        , -0.50003   ,  0.        , -2.00003   ,  0.        ,  2.00003   ,  0.        ],
                       #[ 0. , -0.5,  0. , -2. ,  0. ,  2. ,  0. ,  0. , -0.5,  0. , -2. , 0. ,  2. ,  0. ],
-                      [ 0. , -0.5,  0. , -1.7 ,  0. ,  1.8 ,  0.712 ,  0. , -0.5,  0. , -1.7 , 0. ,  1.8 ,  0.712 ],
+                      [ 0. , -0.5,  0. , -1.7 ,  0. ,  2.5 ,  0.712 ,  0. , -0.5,  0. , -1.7 , 0. ,  2.5 ,  0.712 ],
                       order=0)
 
 
