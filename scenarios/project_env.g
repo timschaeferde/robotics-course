@@ -1,27 +1,35 @@
 world {}
 
+
+bottom (world){
+    shape:ssBox, Q:<t(0. 0. -0.11)>, size:[4. 2. .20 .02], color:[.3 .3 .3]
+    contact:1, logical:{ }
+    friction:.1
+}
+
+
 ### walls
 
 wall1 (world){
-    shape:ssBox, Q:<t(-1.6 0. .8) d(90 0 1 0)>, size:[1.7 2. .05 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(-1.65 0. .8) d(90 0 1 0)>, size:[1.7 2. .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall2 (world){
-    shape:ssBox, Q:<t(1.6 0. .8) d(90 0 1 0)>, size:[1.7 2. .05 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(1.65 0. .8) d(90 0 1 0)>, size:[1.7 2. .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall3 (world){
-    shape:ssBox, Q:<t(0. -.9 .35) d(90 1 0 0)>, size:[3.5 0.8 .05 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. -.85 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall4 (world){
-    shape:ssBox, Q:<t(0. .9 .35) d(90 1 0 0)>, size:[3.5 0.8 .05 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. .85 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
@@ -42,8 +50,8 @@ Delete R_panda_coll0b
 
 Prefix!
         
-Edit L_panda_link0 (world) { Q:<t(-1. 0. 0.) d(0 0 0 1)> }
-Edit R_panda_link0 (world)  { Q:<t( 1. 0. 0.) d(180 0 0 1)> }
+Edit R_panda_link0 (world) { Q:<t(-1. 0. 0.) d(0 0 0 1)> }
+Edit L_panda_link0 (world)  { Q:<t( 1. 0. 0.) d(180 0 0 1)> }
 
 ### camera
 
@@ -59,6 +67,13 @@ camera3(world){
     Q:<t(0. 0 3.0) d(0 1 0 0)>,
     shape:marker, size:[.2]}
 
+camera4(world){
+    Q:<t(1.55 -.75 0.2) d(180 0 0 1)  d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0)>,
+    shape:marker, size:[.3]}
+
+camera5(world){
+    Q:<t(-1.55 .75 0.2) d(90 0 -1 0) d(90 0 0 -1) d(30 0 -1 0) d(15 1 0 0) >,
+    shape:marker, size:[.3]}
 ### ball
 
 ball 	{  shape:sphere, size:[.03],contact:1, mass:.2 X:<[0.5, 0., 0.05, 0,0,0,1.]> color:[1,1,0] }

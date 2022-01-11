@@ -5,6 +5,8 @@
 import time
 from datetime import datetime
 
+from pprint import pprint
+
 import numpy as np
 
 from config.CONFIG import *
@@ -40,6 +42,8 @@ def main():
 
     Rai.add_camera("camera1", 640, 480, 0.69, zRange=[0.01, 6])
     Rai.add_camera("camera2", 640, 480, 0.8954, zRange=[0.01, 6])
+    Rai.add_camera("camera4", 640, 480, 0.8954, zRange=[0.01, 6])
+    Rai.add_camera("camera5", 640, 480, 0.8954, zRange=[0.01, 6])
     Rai.add_camera("camera3", 640, 360, 0.8954, zRange=[0.01, 6])
 
     # input()
@@ -56,8 +60,8 @@ def main():
 
     Rai.run_simulation(50, False)
     for f in range(5):
-        gripper = "R_gripper"
-        throw_velocity = [-.3, 0.04, .95]
+        gripper = "L_gripper"
+        throw_velocity = [-.26, 0.05, .85]
         lift_position = [0.85, 0., 0.2]
 
         pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
@@ -79,9 +83,9 @@ def main():
                 # send velocity controls to the simulation
             Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
 
-        gripper = "L_gripper"
+        gripper = "R_gripper"
 
-        throw_velocity = [.3, 0.04, .95]
+        throw_velocity = [.26, 0.05, .85]
         lift_position = [-0.85, 0., 0.2]
 
         pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
@@ -142,6 +146,7 @@ def pickAndThrowBall(Rai: RaiEnv, gripper, mk_ball, throw_velocity, lift_positio
 
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
+    
 
 
 def pickBall(Rai: RaiEnv, gripper, mk_ball):
@@ -158,29 +163,36 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
     tryToPickBall = True
 
     while tryToPickBall and not grasped:
-        t += tau
+        if gripping and Rai.S.getGripperIsGrasping(gripper):
+            print("GRASPED!")
+            grasped = True
+            break
+        
         time.sleep(tau)
         # grab sensor readings from the simulation
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % (1 * tau) == 0:
-            update_ball_marker(Rai, mk_ball)
+        
+        update_ball_marker(Rai, mk_ball)
 
         # get distance
-        distance = abs(Rai.C.evalFeature(ry.FS.distance, [
-            gripper, config_obj_name])[0][0])
+        #distance = abs(Rai.C.evalFeature(ry.FS.distance, [
+        #    gripper, config_obj_name])[0][0])
+        distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition()-Rai.C.getFrame(config_obj_name).getPosition())
         # print(distance)
 
-        if t % (1 * tau) == 0 and not gripping:
+        if t % 1  == 0:
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(1, int(4 * distance))
-            komo_duration = 0.5  # * distance
+            komo_steps = max(1, int(5 * distance))
+            komo_duration = 0.1 * komo_steps  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
                 komo_phase, komo_steps, komo_duration, True)
+            komo.clearObjectives()
+            #komo.addTimeOptimization()
             komo.add_qControlObjective([],
                                        1,
                                        1e1)
@@ -188,7 +200,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
                               ry.FS.positionDiff,
                               [gripper, config_obj_name],
                               ry.OT.eq,
-                              [1e2],
+                              [1e1],
                               [0., 0., 0.])
             komo.addObjective([0.9 * komo_phase, komo_phase],
                               ry.FS.vectorZ,
@@ -207,27 +219,25 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
             # optimize
             komo.optimize()
 
-        # select frame
+        t += 1
 
+        # select frame
         Rai.C.setFrameState(komo.getPathFrames()[0])
 
         # get joint states
         q = Rai.C.getJointState()
 
-        if not gripping and (distance < .03):
+        # print(Rai.S.getGripperWidth(gripper))
+        if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
+            gripping = False
+            Rai.S.openGripper(gripper, speed=20.)
+        
+        if not gripping and (distance < .02):
             Rai.S.closeGripper(gripper, speed=20.)
             gripping = True
 
-        if gripping and Rai.S.getGripperIsGrasping(gripper):
-            print("GRASPED!")
-            grasped = True
-            break
-        # print(Rai.S.getGripperWidth(gripper))
-        # if gripping and (Rai.S.getGripperWidth(gripper) < .01) and not grasped:
-        #    gripping = False
-        #    Rai.S.openGripper(gripper, speed=20.)
 
-        # send no controls to the simulation
+        # send controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
 
 
@@ -235,6 +245,12 @@ def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
 
     # color segment ball etc.
     ball_position = get_ball_position(Rai, ball_color)
+
+    # CHEAT
+    #ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
+    #pprint("ball error: {}".format(np.linalg.norm(ball_position-ball_position_real)))
+    #print("*************** Cheating! **************")
+    #ball_position = ball_position_real
 
     mk_ball.setPosition(ball_position)
     return ball_position
@@ -268,15 +284,18 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
             continue
         # get center of points
         rel_position = ball_points.mean(axis=0)
-        # transform to real world coordinates
+        # transform to real world coordinates 
         positions.append(camera.transformPointsToRealWorld(rel_position))
 
     if len(positions) == 0:
         # print("Object cannot be tracked! Probably out of sigth.")
         return np.array([0, 0, 0])
+    else:
+        # Debug
+        # print("Tracking with {} cameras.".format(len(positions)))
 
-    # return averaged position
-    return np.array(positions).mean(axis=0)
+        # return averaged position
+        return np.array(positions).mean(axis=0)
 
 
 def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
@@ -287,6 +306,8 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(komo_phase, komo_steps, komo_duration, 2)
+
+    komo.clearObjectives()
 
     throwing_time = 2.4
 
@@ -299,12 +320,18 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       ry.OT.sos,
                       [1e2],
                       lift_position)
-    komo.addObjective([throwing_time + 0.2, 3.],
-                      ry.FS.vectorX,
-                      [gripper],
-                      ry.OT.sos,
-                      [1e2],
-                      [0., 1., 0.])
+    #komo.addObjective([throwing_time + 0.2, 3.],
+    #                  ry.FS.vectorY,
+    #                  [gripper],
+    #                  ry.OT.sos,
+    #                  [1e2],
+    #                  throw_velocity)
+    #komo.addObjective([throwing_time + 0.2, 3.],
+    #                  ry.FS.vectorX,
+    #                  [gripper],
+    #                  ry.OT.sos,
+    #                  [1e2],
+    #                  [0, 1, 0])
     komo.addObjective([throwing_time, 3.],
                       ry.FS.position,
                       [gripper],
@@ -312,6 +339,18 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       [1e2],
                       throw_velocity,
                       order=1)
+    # end robot pose                  
+    komo.addObjective([3.],
+                      ry.FS.qItself,
+                      [],
+                      ry.OT.sos,
+                      [1e2],
+                      #[-0.04965219, -0.55857035, -0.02696226, -1.70212158,  0.03394528, 1.82795503,  0.71206629,  0.        , -0.50003   ,  0.        , -2.00003   ,  0.        ,  2.00003   ,  0.        ],
+                      #[ 0. , -0.5,  0. , -2. ,  0. ,  2. ,  0. ,  0. , -0.5,  0. , -2. , 0. ,  2. ,  0. ],
+                      [ 0. , -0.5,  0. , -1.7 ,  0. ,  1.8 ,  0.712 ,  0. , -0.5,  0. , -1.7 , 0. ,  1.8 ,  0.712 ],
+                      order=0)
+
+
 
     # optimize
     komo.optimize()

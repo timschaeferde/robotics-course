@@ -181,8 +181,7 @@ class RaiEnv:
     def run_simulation(self, steps=1000, updatePointCloud=True):
         old_time = datetime.now()
         for t in range(steps):
-            now = datetime.now()
-            delta = (now - old_time).total_seconds()
+            delta = (datetime.now() - old_time).total_seconds()
             time.sleep(max(0, self.tau - delta))
             old_time = datetime.now()
 
