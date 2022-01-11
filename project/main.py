@@ -46,6 +46,16 @@ def main():
     Rai.add_camera("camera5", 640, 480, 0.8954, zRange=[0.01, 6])
     Rai.add_camera("camera3", 640, 360, 0.8954, zRange=[0.01, 6])
 
+    robots = [{"prefix": "L_",
+               "throw_velocity": [-.36, .05, .75],
+               "lift_position": [.85, 0., .2]
+               },
+              {"prefix": "R_",
+               "throw_velocity": [.36, .05, .75],
+               "lift_position": [-.85, 0., .2]
+               }
+              ]
+
     # input()
 
     # inialize ball marker
@@ -59,12 +69,11 @@ def main():
     # start
 
     Rai.run_simulation(50, False)
-    for f in range(5):
-        gripper = "L_gripper"
-        throw_velocity = [-.36, 0.05, .75]
-        lift_position = [0.85, 0., 0.2]
+    for f in range(6):
 
-        pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
+        update_ball_marker(Rai, mk_ball)
+
+        pickAndThrowBall(Rai, robots, mk_ball)
 
         tau = .01
         duration = 1.5
@@ -83,37 +92,28 @@ def main():
                 # send velocity controls to the simulation
             Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
 
-        gripper = "R_gripper"
-
-        throw_velocity = [.36, 0.05, .75]
-        lift_position = [-0.85, 0., 0.2]
-
-        pickAndThrowBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
-
-        tau = .01
-        duration = 1.5
-        ballMotion = ProjectileMotion()
-
-        # simulate to see throw
-        for t in range(int(duration / tau)):
-            time.sleep(tau)
-            q = Rai.S.get_q()
-            Rai.C.setJointState(q)  # set your robot model to match the real q
-
-            if t % 10 == 0:
-                position = update_ball_marker(Rai, mk_ball)
-                ballMotion.updatePosition(position, t * tau)
-
-            # send velocity controls to the simulation
-            Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
-
     input()
 
 
-def pickAndThrowBall(Rai: RaiEnv, gripper, mk_ball, throw_velocity, lift_position):
+def selectCorrectRobot(Rai: RaiEnv, robots, mk_ball):
 
-    gripping = False
-    grasped = False
+    ball_position = mk_ball.getPosition()
+    distances = []
+    for robot in robots:
+        prefix = robot["prefix"]
+        distances.append(np.linalg.norm(Rai.C.getFrame(
+            "{}panda_link0".format(prefix)).getPosition() - ball_position))
+
+    i = np.argmin(distances)
+    prefix = robots[i]["prefix"]
+
+    return "{}gripper".format(prefix), robots[i]["throw_velocity"], robots[i]["lift_position"]
+
+
+def pickAndThrowBall(Rai: RaiEnv, robots, mk_ball):
+
+    gripper, throw_velocity, lift_position = selectCorrectRobot(
+        Rai, robots, mk_ball)
 
     # pick ball here
     pickBall(Rai, gripper, mk_ball)
@@ -146,7 +146,6 @@ def pickAndThrowBall(Rai: RaiEnv, gripper, mk_ball, throw_velocity, lift_positio
 
         # send position to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
-    
 
 
 def pickBall(Rai: RaiEnv, gripper, mk_ball):
@@ -163,21 +162,22 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
     tryToPickBall = True
 
     while tryToPickBall and not grasped:
+
         if gripping and Rai.S.getGripperIsGrasping(gripper):
             print("GRASPED!")
             grasped = True
             break
-        
+
         time.sleep(tau)
         # grab sensor readings from the simulation
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        
         update_ball_marker(Rai, mk_ball)
 
         # get distance
-        distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition()-Rai.C.getFrame(config_obj_name).getPosition())
+        distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
+        ) - Rai.C.getFrame(config_obj_name).getPosition())
         # print(distance)
 
         gripping_distance = 0.02
@@ -188,10 +188,8 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         elif gripping and (Rai.S.getGripperWidth(gripper) < .001) and (distance > gripping_distance):
             gripping = False
             Rai.S.openGripper(gripper, speed=20.)
-        
-        
 
-        if t % 1  == 0 and not gripping:
+        if t % 1 == 0 and not gripping:
             # start grapsing here
             komo_phase = 1.
             komo_steps = max(1, int(6 * distance))
@@ -246,10 +244,10 @@ def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
     ball_position = get_ball_position(Rai, ball_color)
 
     # CHEAT
-    #ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
-    #pprint("ball error: {}".format(np.linalg.norm(ball_position-ball_position_real)))
-    #print("*************** Cheating! **************")
-    #ball_position = ball_position_real
+    # ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
+    # pprint("ball error: {}".format(np.linalg.norm(ball_position-ball_position_real)))
+    # print("*************** Cheating! **************")
+    # ball_position = ball_position_real
 
     mk_ball.setPosition(ball_position)
     return ball_position
@@ -283,7 +281,7 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
             continue
         # get center of points
         rel_position = ball_points.mean(axis=0)
-        # transform to real world coordinates 
+        # transform to real world coordinates
         positions.append(camera.transformPointsToRealWorld(rel_position))
 
     if len(positions) == 0:
@@ -326,18 +324,17 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       [1e2],
                       throw_velocity,
                       order=1)
-    # end robot pose                  
+    # end robot pose
     komo.addObjective([3.],
                       ry.FS.qItself,
                       [],
                       ry.OT.sos,
                       [1e2],
-                      #[-0.04965219, -0.55857035, -0.02696226, -1.70212158,  0.03394528, 1.82795503,  0.71206629,  0.        , -0.50003   ,  0.        , -2.00003   ,  0.        ,  2.00003   ,  0.        ],
-                      #[ 0. , -0.5,  0. , -2. ,  0. ,  2. ,  0. ,  0. , -0.5,  0. , -2. , 0. ,  2. ,  0. ],
-                      [ 0. , -0.5,  0. , -1.7 ,  0. ,  2.5 ,  0.712 ,  0. , -0.5,  0. , -1.7 , 0. ,  2.5 ,  0.712 ],
+                      # [-0.04965219, -0.55857035, -0.02696226, -1.70212158,  0.03394528, 1.82795503,  0.71206629,  0.        , -0.50003   ,  0.        , -2.00003   ,  0.        ,  2.00003   ,  0.        ],
+                      # [ 0. , -0.5,  0. , -2. ,  0. ,  2. ,  0. ,  0. , -0.5,  0. , -2. , 0. ,  2. ,  0. ],
+                      [0., -0.5, 0., -1.7, 0., 2.5, 0.712,
+                          0., -0.5, 0., -1.7, 0., 2.5, 0.712],
                       order=0)
-
-
 
     # optimize
     komo.optimize()
