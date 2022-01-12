@@ -48,11 +48,13 @@ def main():
 
     robots = [{"prefix": "L_",
                "throw_velocity": [-.25, .0, .65],
-               "lift_position": [.9, 0., .2]
+               "lift_position": [.9, 0., .2],
+               "catching_props": {"distance": 0.6, "axis": 0},
                },
               {"prefix": "R_",
                "throw_velocity": [.25, .0, .65],
-               "lift_position": [-.9, 0., .2]
+               "lift_position": [-.9, 0., .2],
+               "catching_props": {"distance": -0.6, "axis": 0},
                }
               ]
 
@@ -85,9 +87,9 @@ def main():
 
         throwBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
 
-        gripper = selectCatchingRobot(Rai, robots, mk_ball)
+        gripper, catching_props = selectCatchingRobot(Rai, robots, mk_ball)
 
-        catchBall(Rai, gripper, mk_ball)
+        catchBall(Rai, gripper, mk_ball, catching_props)
 
     input()
 
@@ -119,23 +121,23 @@ def selectCatchingRobot(Rai: RaiEnv, robots, mk_ball):
     i = np.argmax(distances)
     prefix = robots[i]["prefix"]
 
-    return "{}gripper".format(prefix)
+    return "{}gripper".format(prefix), robots[i]["catching_props"]
 
 
-def catchBall(Rai: RaiEnv, gripper, mk_ball):
+def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
     tau = .01
 
     gripping = False
     grasped = False
 
-    config_obj_name = mk_ball.getName()
-
     ballMotion = ProjectileMotion()
 
     t = 0
 
-    printReal = True
+    komo = None
+
+    update_interval = 10
 
     while not grasped:
 
@@ -143,29 +145,42 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
             print("GRASPED!")
             grasped = True
             break
+
         # grab sensor readings from the simulation
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % 2 == 0:
+        if t % update_interval == 0:
             position = update_ball_marker(Rai, mk_ball)
             ballMotion.updatePosition(position, t * tau)
-            TOA = ballMotion.getTimeOfArival(-0.6, axis=0)
-            position = ballMotion.getPosition((t + 2) * tau)
-            print(position)
 
-        if (t) * tau < TOA <= (t + 1) * tau:
+            # round to tau steps
+            TOA = round(ballMotion.getTimeOfArival(
+                catching_props["distance"], catching_props["axis"]) * 1 / tau) * tau
+            print("Time:\t{:.2f}".format(t * tau))
+            print("ToA:\t{:.3f}".format(TOA))
+            # calculate catching position at ToA
+            catch_position = ballMotion.getPosition(TOA)
+            catch_velosity = ballMotion.getVelosity(TOA)
+            print(catch_position)
+
+        if (t - 1) * tau < TOA <= (t) * tau and TOA != 0:
             ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
             print("Time:\t{:.5f}".format(t * tau))
+            print("ToA:\t{:.3f}".format(TOA))
             print(ball_position_real)
             input()
 
-        # get distance
-        distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
-        ) - Rai.C.getFrame(config_obj_name).getPosition())
+        try:  # get distance in next step!
+            distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
+            ) - ballMotion.getPosition((t + 1) * tau))
+        except:
+            # get distance in this step
+            distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
+            ) - mk_ball.getPosition())
         # print(distance)
 
-        gripping_distance = 0.02
+        gripping_distance = 0.03
 
         if not gripping and (distance <= gripping_distance):
             Rai.S.closeGripper(gripper, speed=20.)
@@ -174,11 +189,13 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
             gripping = False
             Rai.S.openGripper(gripper, speed=20.)
 
-        if t % 2 == 0 and not gripping:
+        if t % update_interval == 0 and not gripping and catch_velosity is not None and t * tau > TOA * 0.33:
+            i = 0
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(1, int(3 * distance))
-            komo_duration = 0.05 * komo_steps  # * distance
+            komo_steps = max(update_interval, int(
+                abs(TOA - (t * tau)) / update_interval / tau))
+            komo_duration = abs(TOA - (t * tau))  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
@@ -193,27 +210,40 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
                               [gripper],
                               ry.OT.eq,
                               [1e1],
-                              position)
+                              catch_position)
+            komo.addObjective([komo_phase],
+                              ry.FS.position,
+                              [gripper],
+                              ry.OT.eq,
+                              [1e1],
+                              0.1 * catch_velosity,
+                              order=1)
             komo.addObjective([komo_phase],
                               ry.FS.vectorZ,
                               [gripper],
                               ry.OT.sos,
-                              [1e0],
-                              ballMotion.getVelosity(TOA))
+                              [1e1],
+                              catch_velosity)
 
             # optimize
             komo.optimize()
 
-        t += 1
+        if komo is not None:
+            # select frame
+            try:
+                Rai.C.setFrameState(komo.getPathFrames()[i])
+                i += 1
+            except:
+                Rai.C.setFrameState(komo.getPathFrames()[0])
 
-        # select frame
-        Rai.C.setFrameState(komo.getPathFrames()[0])
+        t += 1
 
         # get joint states
         q = Rai.C.getJointState()
 
         # send controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
+    return grasped
 
 
 def throwBall(Rai: RaiEnv, gripper, mk_ball, throw_velocity, lift_position):
@@ -414,7 +444,7 @@ def komo_lift_and_throw(Rai: RaiEnv, gripper, throw_velocity, lift_position):
                       ry.FS.position,
                       [gripper],
                       ry.OT.sos,
-                      [1e1],
+                      [1e2],
                       lift_position)
     komo.addObjective([throwing_time, 3.],
                       ry.FS.position,
