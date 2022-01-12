@@ -23,6 +23,8 @@ from lib.tools.ProjectileMotion import ProjectileMotion
 
 def main():
 
+    grasped = False
+
     #########################################
     # initialize rai simulation here        #
     #########################################
@@ -47,12 +49,12 @@ def main():
     Rai.add_camera("camera3", 640, 360, 0.8954, zRange=[0.01, 6])
 
     robots = [{"prefix": "L_",
-               "throw_velocity": [-.36, .05, .75],
-               "lift_position": [.85, 0., .2]
+               "throw_velocity": [-.25, .0, .75],
+               "lift_position": [.9, 0., .2]
                },
               {"prefix": "R_",
-               "throw_velocity": [.36, .05, .75],
-               "lift_position": [-.85, 0., .2]
+               "throw_velocity": [.25, .0, .75],
+               "lift_position": [-.9, 0., .2]
                }
               ]
 
@@ -69,33 +71,30 @@ def main():
     # start
 
     Rai.run_simulation(50, False)
+
+    update_ball_marker(Rai, mk_ball)
+
+    gripper, throw_velocity, lift_position = selectPickingRobot(
+        Rai, robots, mk_ball)
+
+    # pick ball here
+    grasped = pickBall(Rai, gripper, mk_ball)
+
     for f in range(6):
 
-        update_ball_marker(Rai, mk_ball)
+        gripper, throw_velocity, lift_position = selectPickingRobot(
+            Rai, robots, mk_ball)
 
-        pickAndThrowBall(Rai, robots, mk_ball)
+        throwBall(Rai, gripper, mk_ball, throw_velocity, lift_position)
 
-        tau = .01
-        duration = 1.5
-        ballMotion = ProjectileMotion()
+        gripper = selectCatchingRobot(Rai, robots, mk_ball)
 
-        # simulate to see throw
-        for t in range(int(duration / tau)):
-            time.sleep(tau)
-            q = Rai.S.get_q()
-            Rai.C.setJointState(q)  # set your robot model to match the real q
-
-            if t % 10 == 0:
-                position = update_ball_marker(Rai, mk_ball)
-                ballMotion.updatePosition(position, t * tau)
-
-                # send velocity controls to the simulation
-            Rai.S.step(np.zeros_like(q), tau, ry.ControlMode.none)
+        catchBall(Rai, gripper, mk_ball)
 
     input()
 
 
-def selectCorrectRobot(Rai: RaiEnv, robots, mk_ball):
+def selectPickingRobot(Rai: RaiEnv, robots, mk_ball):
 
     ball_position = mk_ball.getPosition()
     distances = []
@@ -110,13 +109,104 @@ def selectCorrectRobot(Rai: RaiEnv, robots, mk_ball):
     return "{}gripper".format(prefix), robots[i]["throw_velocity"], robots[i]["lift_position"]
 
 
-def pickAndThrowBall(Rai: RaiEnv, robots, mk_ball):
+def selectCatchingRobot(Rai: RaiEnv, robots, mk_ball):
 
-    gripper, throw_velocity, lift_position = selectCorrectRobot(
-        Rai, robots, mk_ball)
+    ball_position = mk_ball.getPosition()
+    distances = []
+    for robot in robots:
+        prefix = robot["prefix"]
+        distances.append(np.linalg.norm(Rai.C.getFrame(
+            "{}panda_link0".format(prefix)).getPosition() - ball_position))
 
-    # pick ball here
-    pickBall(Rai, gripper, mk_ball)
+    i = np.argmax(distances)
+    prefix = robots[i]["prefix"]
+
+    return "{}gripper".format(prefix)
+
+
+def catchBall(Rai: RaiEnv, gripper, mk_ball):
+
+    tau = .01
+
+    gripping = False
+    grasped = False
+
+    config_obj_name = mk_ball.getName()
+
+    ballMotion = ProjectileMotion()
+
+    t = 0
+
+    while not grasped:
+
+        if gripping and Rai.S.getGripperIsGrasping(gripper):
+            print("GRASPED!")
+            grasped = True
+            break
+        # grab sensor readings from the simulation
+        q = Rai.S.get_q()
+        Rai.C.setJointState(q)  # set your robot model to match the real q
+
+        if t % 3 == 0:
+            position = update_ball_marker(Rai, mk_ball)
+            ballMotion.updatePosition(position, t * tau)
+            toa = ballMotion.getTimeOfArival(-0.7, axis=0)
+            pprint(toa)
+            pprint(toa - t * tau)
+            position = ballMotion.getPosition(toa)
+            pprint(position)
+
+        # get distance
+        distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
+        ) - Rai.C.getFrame(config_obj_name).getPosition())
+        # print(distance)
+
+        gripping_distance = 0.02
+
+        if not gripping and (distance <= gripping_distance):
+            Rai.S.closeGripper(gripper, speed=20.)
+            gripping = True
+        elif gripping and (Rai.S.getGripperWidth(gripper) < .001) and (distance > gripping_distance):
+            gripping = False
+            Rai.S.openGripper(gripper, speed=20.)
+
+        if t % 3 == 0 and not gripping:
+            # start grapsing here
+            komo_phase = 1.
+            komo_steps = max(1, int(6 * distance))
+            komo_duration = 0.05 * komo_steps  # * distance
+
+            # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
+            komo = Rai.C.komo_path(
+                komo_phase, komo_steps, komo_duration, True)
+            komo.clearObjectives()
+            komo.addTimeOptimization()
+            komo.add_qControlObjective([],
+                                       1,
+                                       1e1)
+            komo.addObjective([komo_phase],
+                              ry.FS.position,
+                              [gripper],
+                              ry.OT.eq,
+                              [1e1],
+                              position)
+
+            # optimize
+            komo.optimize()
+
+        t += 1
+
+        # select frame
+        Rai.C.setFrameState(komo.getPathFrames()[0])
+
+        # get joint states
+        q = Rai.C.getJointState()
+
+        # send controls to the simulation
+        Rai.S.step(q, tau, ry.ControlMode.position)
+
+
+def throwBall(Rai: RaiEnv, gripper, mk_ball, throw_velocity, lift_position):
 
     komo = komo_lift_and_throw(
         Rai, gripper, throw_velocity, lift_position)
@@ -159,9 +249,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
     t = 0
 
-    tryToPickBall = True
-
-    while tryToPickBall and not grasped:
+    while not grasped:
 
         if gripping and Rai.S.getGripperIsGrasping(gripper):
             print("GRASPED!")
@@ -236,6 +324,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
         # send controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
+    return grasped
 
 
 def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):

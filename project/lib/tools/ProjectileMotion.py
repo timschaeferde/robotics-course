@@ -30,8 +30,8 @@ class ProjectileMotion:
         self._updateVel()
         self._updateAccel()
         if pred is not None:
-            error = np.linalg.norm(position - pred)
-            print("Error in m: {:.5f}".format(error))
+            error = position - pred
+            print("Error in m: {}".format(error))
 
     def _updateVel(self):
         if len(self.positions) < 2:
@@ -49,7 +49,7 @@ class ProjectileMotion:
                 timeDelta = (self.t[i + 1] - self.t[i])
 
                 vel.append((pos1 - pos0) / timeDelta)
-            #print("Vel: \t" + str(vel))
+            # print("Vel: \t" + str(vel))
             self.velocities.append(vel)
             self.mean_velocity = np.array(self.velocities).mean(axis=0)
         return
@@ -70,7 +70,7 @@ class ProjectileMotion:
                 timeDelta = (self.t[i + 2] - self.t[i + 1])
 
                 accel.append((pos1 - pos0) / timeDelta)
-            #print("Accel: \t" + str(accel))
+            # print("Accel: \t" + str(accel))
             self.accelerations.append(accel)
             self.mean_acceleration = np.array(self.accelerations).mean(axis=0)
         return
@@ -91,4 +91,13 @@ class ProjectileMotion:
         return np.array([0., 0., -self.g])
 
     def getTimeOfArival(self, value, axis=0):
-        return
+
+        if axis < 2:
+            if len(self.velocities) < 1:
+                return 0.
+            TOA = (value - self.positions[-1][axis]) / \
+                (np.array(self.mean_velocity[axis])) + self.t[-1]
+            return TOA
+        else:
+            # z axis not implemented
+            return None
