@@ -23,8 +23,6 @@ from lib.tools.ProjectileMotion import ProjectileMotion
 
 def main():
 
-    grasped = False
-
     #########################################
     # initialize rai simulation here        #
     #########################################
@@ -49,11 +47,11 @@ def main():
     Rai.add_camera("camera3", 640, 360, 0.8954, zRange=[0.01, 6])
 
     robots = [{"prefix": "L_",
-               "throw_velocity": [-.25, .0, .75],
+               "throw_velocity": [-.25, .0, .65],
                "lift_position": [.9, 0., .2]
                },
               {"prefix": "R_",
-               "throw_velocity": [.25, .0, .75],
+               "throw_velocity": [.25, .0, .65],
                "lift_position": [-.9, 0., .2]
                }
               ]
@@ -70,7 +68,7 @@ def main():
 
     # start
 
-    Rai.run_simulation(50, False)
+    Rai.run_simulation(20, False)
 
     update_ball_marker(Rai, mk_ball)
 
@@ -137,6 +135,8 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
 
     t = 0
 
+    printReal = True
+
     while not grasped:
 
         if gripping and Rai.S.getGripperIsGrasping(gripper):
@@ -147,14 +147,18 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % 3 == 0:
+        if t % 2 == 0:
             position = update_ball_marker(Rai, mk_ball)
             ballMotion.updatePosition(position, t * tau)
-            toa = ballMotion.getTimeOfArival(-0.7, axis=0)
-            pprint(toa)
-            pprint(toa - t * tau)
-            position = ballMotion.getPosition(toa)
-            pprint(position)
+            TOA = ballMotion.getTimeOfArival(-0.6, axis=0)
+            position = ballMotion.getPosition((t + 2) * tau)
+            print(position)
+
+        if (t) * tau < TOA <= (t + 1) * tau:
+            ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
+            print("Time:\t{:.5f}".format(t * tau))
+            print(ball_position_real)
+            input()
 
         # get distance
         distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
@@ -170,10 +174,10 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
             gripping = False
             Rai.S.openGripper(gripper, speed=20.)
 
-        if t % 3 == 0 and not gripping:
+        if t % 2 == 0 and not gripping:
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(1, int(6 * distance))
+            komo_steps = max(1, int(3 * distance))
             komo_duration = 0.05 * komo_steps  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
@@ -190,6 +194,12 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball):
                               ry.OT.eq,
                               [1e1],
                               position)
+            komo.addObjective([komo_phase],
+                              ry.FS.vectorZ,
+                              [gripper],
+                              ry.OT.sos,
+                              [1e0],
+                              ballMotion.getVelosity(TOA))
 
             # optimize
             komo.optimize()
@@ -368,8 +378,8 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
         if len(ball_points) == 0:
             # skip if no points where found
             continue
-        # get center of points
-        rel_position = ball_points.mean(axis=0)
+        # get center of points plus offset due to convex pointcloud
+        rel_position = ball_points.mean(axis=0) + np.array([0, 0, 0.01])
         # transform to real world coordinates
         positions.append(camera.transformPointsToRealWorld(rel_position))
 

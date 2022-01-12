@@ -24,14 +24,15 @@ class ProjectileMotion:
 
     def updatePosition(self, position, t):
 
-        pred = self.getPosition(t)
+        #pred = self.getPosition(t)
         self.t.append(t)
         self.positions.append(position)
         self._updateVel()
         self._updateAccel()
-        if pred is not None:
-            error = position - pred
-            print("Error in m: {}".format(error))
+        # if pred is not None:
+        #    error = pred - position
+        #    with np.printoptions(precision=3, suppress=True):
+        #        print("Error in m: {}".format(error))
 
     def _updateVel(self):
         if len(self.positions) < 2:
@@ -79,8 +80,15 @@ class ProjectileMotion:
     def getPosition(self, time):
         if len(self.velocities) < 1:
             return
-        delta_t = (time - self.t[-1])
-        return np.array(self.positions[-1]) + self.getVelosity(time) * delta_t
+        position = np.array(self.positions[-1]) + \
+            self.getVelosity(time) * (time - self.t[-1]) \
+            - .5 * self.getAccelerlation(time) * \
+            (time - self.t[-1])**2
+
+        # position with correction term (don't know why needed)
+        corrected_position = np.array(position) + \
+            np.array([0, 0, -0.013 / 0.05 * (time - self.t[-1])])
+        return corrected_position
 
     def getVelosity(self, time):
         if len(self.velocities) < 1:
@@ -96,7 +104,7 @@ class ProjectileMotion:
             if len(self.velocities) < 1:
                 return 0.
             TOA = (value - self.positions[-1][axis]) / \
-                (np.array(self.mean_velocity[axis])) + self.t[-1]
+                (np.array(self.velocities[-1][axis])) + self.t[-1]
             return TOA
         else:
             # z axis not implemented
