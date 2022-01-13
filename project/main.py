@@ -241,6 +241,13 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                               ry.OT.sos,
                               [1e0],
                               catch_velosity)
+            # avoid collisions
+            komo.addObjective([],
+                              ry.FS.accumulatedCollisions,
+                              [],
+                              ry.OT.ineq,
+                              [1e0],
+                              [0.])
 
             # optimize
             komo.optimize()
@@ -295,7 +302,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([1., 0., 1.3])
+    throwing_velocity = np.array(throw_direction) * np.array([0.55, 0.02, 1.8])
     print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
