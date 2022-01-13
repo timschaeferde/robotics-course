@@ -52,7 +52,7 @@ def main():
                "joints":['L_panda_joint1', 'L_panda_joint2', 'L_panda_joint3',
                          'L_panda_joint4', 'L_panda_joint5', 'L_panda_joint6',
                          'L_panda_joint7'],
-               "catching_props": {"distance": 0.6, "axis": 0},
+               "catching_props": {"distance": 0.65, "axis": 0},
                },
               {"prefix": "R_",
                "throw_direction": [1, -1, 1],
@@ -60,11 +60,11 @@ def main():
                "joints":['R_panda_joint1', 'R_panda_joint2', 'R_panda_joint3',
                          'R_panda_joint4', 'R_panda_joint5', 'R_panda_joint6',
                          'R_panda_joint7'],
-               "catching_props": {"distance": -0.6, "axis": 0},
+               "catching_props": {"distance": -0.65, "axis": 0},
                }
               ]
 
-    # input()
+    input()
 
     # inialize ball marker
     mk_ball_name = "mk_ball"
@@ -225,22 +225,22 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                               ry.OT.eq,
                               [1e1],
                               catch_position)
-            # if t * tau > TOA * 0.8:
+            # if t * tau > TOA * 0.:
             #    # try to gripp with same velocity
-            #    komo.addObjective([komo_phase],
+            #    komo.addObjective([komo_phase - 2 * komo_phase / komo_steps, komo_phase],
             #                      ry.FS.position,
             #                      [gripper],
-            #                      ry.OT.eq,
-            #                      [1e0],
-            #                      0.2 * catch_velosity,
+            #                      ry.OT.sos,
+            #                      [1e1],
+            #                      1 * catch_velosity,
             #                      order=1)
-            # try to gripp with same velocity
+            #   try to gripp with same velocity
             komo.addObjective([komo_phase],
-                              ry.FS.vectorZ,
+                              ry.FS.vectorY,
                               [gripper],
                               ry.OT.sos,
-                              [1e0],
-                              catch_velosity)
+                              [5e0],
+                              -catch_velosity)
             # avoid collisions
             komo.addObjective([],
                               ry.FS.accumulatedCollisions,
@@ -302,7 +302,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([0.55, 0.02, 1.8])
+    throwing_velocity = np.array(throw_direction) * np.array([0.75, 0.02, 1.6])
     print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
@@ -328,7 +328,7 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
                       joints,
                       ry.OT.sos,
                       [5e0],
-                      [0., -0.5, 0., -1.7, 0., 2.5, 0.712],
+                      [0., -0.5, 0., -1.7, 0., 3.0, 0.712],
                       order=0)
     # optimize
     komo.optimize()
