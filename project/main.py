@@ -64,7 +64,7 @@ def main():
                }
               ]
 
-    input()
+    # input()
 
     # inialize ball marker
     mk_ball_name = "mk_ball"
@@ -239,7 +239,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                               ry.FS.vectorY,
                               [gripper],
                               ry.OT.sos,
-                              [5e0],
+                              [1e0],
                               -catch_velosity)
             # avoid collisions
             komo.addObjective([],
@@ -258,7 +258,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                 Rai.C.setFrameState(komo.getPathFrames()[i])
                 i += 1
             except:
-                Rai.C.setFrameState(komo.getPathFrames()[0])
+                Rai.C.setFrameState(komo.getPathFrames()[-1])
 
         t += 1
 
@@ -284,9 +284,10 @@ def liftBall(Rai: RaiEnv, joints):
     komo.addObjective([komo_phase],
                       ry.FS.qItself,
                       joints,
-                      ry.OT.sos,
+                      ry.OT.eq,
                       [1e1],
-                      [0., -0.64, 0., -2.445, 0., 1.8, 0.57])
+                      [0., 0.2, 0, -2.55, 0, 1.69, 0.71])
+
     # optimize
     komo.optimize()
 
@@ -322,14 +323,20 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
                       [1e1],
                       throwing_velocity,
                       order=1)
-    # end robot pose
     komo.addObjective([komo_phase],
-                      ry.FS.qItself,
-                      joints,
-                      ry.OT.sos,
+                      ry.FS.vectorY,
+                      [gripper],
+                      ry.OT.eq,
                       [5e0],
-                      [0., -0.5, 0., -1.7, 0., 3.0, 0.712],
-                      order=0)
+                      throwing_velocity)
+    # avoid collisions
+    komo.addObjective([],
+                      ry.FS.accumulatedCollisions,
+                      [],
+                      ry.OT.ineq,
+                      [1e1],
+                      [0.])
+
     # optimize
     komo.optimize()
 
