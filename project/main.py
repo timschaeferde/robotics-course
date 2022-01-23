@@ -261,7 +261,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         if komo is not None:
             # select frame
             try:
-                Rai.C.setFrameState(komo.getPathFrames()[0])
+                Rai.C.setFrameState(komo.getPathFrames()[i])
                 i += 1
             except:
                 Rai.C.setFrameState(komo.getPathFrames()[-1])
