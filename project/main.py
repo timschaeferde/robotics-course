@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 from pprint import pprint
+from xmlrpc.client import Boolean
 
 import numpy as np
 
@@ -96,7 +97,12 @@ def main():
 
         gripper, catching_props = selectCatchingRobot(Rai, robots, mk_ball)
 
-        catchBall(Rai, gripper, mk_ball, catching_props)
+        grasped = catchBall(Rai, gripper, mk_ball, catching_props)
+
+        while not grasped:
+            gripper, throw_direction, joints = selectPickingRobot(
+                Rai, robots, mk_ball)
+            grasped = pickBall(Rai, gripper, mk_ball)
 
     input()
 
@@ -255,7 +261,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         if komo is not None:
             # select frame
             try:
-                Rai.C.setFrameState(komo.getPathFrames()[i])
+                Rai.C.setFrameState(komo.getPathFrames()[0])
                 i += 1
             except:
                 Rai.C.setFrameState(komo.getPathFrames()[-1])
@@ -267,6 +273,16 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
         # send controls to the simulation
         Rai.S.step(q, tau, ry.ControlMode.position)
+
+        # end loop when ball hits the ground
+        try:
+            ballHeight = ballMotion.getPosition((t - 1) * tau)[2]
+        except:
+            ballHeight = 1.
+
+        if ballHeight < 0.08:
+            break
+
     return grasped
 
 
@@ -386,7 +402,13 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        update_ball_marker(Rai, mk_ball)
+        ball_position = update_ball_marker(Rai, mk_ball)
+
+        ballToRobotDistance = np.linalg.norm(Rai.C.getFrame(
+            "{}panda_link0".format(gripper[:2])).getPosition() - ball_position)
+
+        if ballToRobotDistance > 1.:
+            break
 
         # get distance
         distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
