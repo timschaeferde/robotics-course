@@ -155,7 +155,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
     komo = None
 
-    update_interval = 10
+    update_interval = 20
 
     while not grasped:
 
@@ -325,7 +325,7 @@ def liftBall(Rai: RaiEnv, joints):
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     throwing_velocity = np.array(throw_direction) * np.array([0.75, 0.02, 1.6])
-    print("Throwing Velocity: {}".format(throwing_velocity))
+    #print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
     komo_steps = 20

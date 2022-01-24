@@ -23,12 +23,19 @@ class ProjectileMotion:
         self.g = gravity  # gravity
 
     def updatePosition(self, position, t):
-
+        # perdict position for error check
         #pred = self.getPosition(t)
+
         self.t.append(t)
-        self.positions.append(position)
+        self.positions.append(np.array(position))
+
+        # calulate velocities
         self._updateVel()
-        self._updateAccel()
+
+        # currently not needed
+        # self._updateAccel()
+
+        # compute error form predicted value
         # if pred is not None:
         #    error = pred - position
         #    with np.printoptions(precision=3, suppress=True):
@@ -37,42 +44,39 @@ class ProjectileMotion:
     def _updateVel(self):
         if len(self.positions) < 2:
             return
-        for i in range(len(self.t) - 1):
-            vel = []
+        if 0 == len(self.velocities):
+            timeDelta = (self.t[1] - self.t[0])
+            self.velocities.append(np.array((self.positions[1] - self.positions[0]) / timeDelta -
+                                            (timeDelta / 2 * self.getAccelerlation(timeDelta / 2))))
 
+        for i in range(len(self.positions) - 1):
             # skip already calulated ones
-            if i < len(self.velocities):
+            if i < len(self.velocities) - 1:
                 continue
-            # in all 3 dimensions
-            for direction in range(3):
-                pos0 = self.positions[i][direction]
-                pos1 = self.positions[i + 1][direction]
-                timeDelta = (self.t[i + 1] - self.t[i])
 
-                vel.append((pos1 - pos0) / timeDelta)
+            timeDelta = (self.t[i + 1] - self.t[i])
+            # average velocity plus acceleration results in perfect velocity
+            vel = ((self.positions[i + 1] - self.positions[i]) / timeDelta +
+                   (timeDelta / 2 * self.getAccelerlation(timeDelta / 2)))
+
             # print("Vel: \t" + str(vel))
-            self.velocities.append(vel)
+            self.velocities.append(np.array(vel))
             self.mean_velocity = np.array(self.velocities).mean(axis=0)
         return
 
     def _updateAccel(self):
         if len(self.velocities) < 2:
             return
-        for i in range(len(self.t) - 2):
-            accel = []
-
+        for i in range(len(self.velocities) - 1):
             # skip already calulated ones
             if i < len(self.accelerations):
                 continue
-            # in all 3 dimensions
-            for direction in range(3):
-                pos0 = self.velocities[i][direction]
-                pos1 = self.velocities[i + 1][direction]
-                timeDelta = (self.t[i + 2] - self.t[i + 1])
 
-                accel.append((pos1 - pos0) / timeDelta)
+            timeDelta = (self.t[i + 1] - self.t[i])
+            accel = (self.velocities[i + 1] - self.velocities[i]) / timeDelta
+
             # print("Accel: \t" + str(accel))
-            self.accelerations.append(accel)
+            self.accelerations.append(np.array(accel))
             self.mean_acceleration = np.array(self.accelerations).mean(axis=0)
         return
 
@@ -85,10 +89,7 @@ class ProjectileMotion:
             - .5 * self.getAccelerlation(time) * \
             (time - self.t[-1])**2
 
-        # position with correction term (don't know why needed)
-        corrected_position = np.array(position) + \
-            np.array([0, 0, -0.013 / 0.05 * (time - self.t[-1])])
-        return corrected_position
+        return position
 
     def getVelosity(self, time):
         if len(self.velocities) < 1:
