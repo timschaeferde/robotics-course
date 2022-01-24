@@ -81,7 +81,7 @@ def main():
 
     update_ball_marker(Rai, mk_ball)
 
-    gripper, throw_direction, lift_position = selectPickingRobot(
+    gripper, throw_direction, _ = selectPickingRobot(
         Rai, robots, mk_ball)
 
     # pick ball here
@@ -106,8 +106,8 @@ def main():
                 update_ball_marker(Rai, mk_ball)
                 gripper, throw_direction, joints = selectPickingRobot(
                     Rai, robots, mk_ball)
-            grasped = pickBall(Rai, gripper, mk_ball)
             i += 1
+            grasped = pickBall(Rai, gripper, mk_ball)
 
     input()
 
@@ -195,13 +195,13 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
             # print(catch_position)
 
+        gripper_position = Rai.C.getFrame(gripper).getPosition()
         try:  # get distance in next step!
-            distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
-            ) - ballMotion.getPosition((t + 1) * tau))
+            distance = np.linalg.norm(
+                gripper_position - ballMotion.getPosition((t + 1) * tau))
         except:
             # get distance in this step
-            distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
-            ) - mk_ball.getPosition())
+            distance = np.linalg.norm(gripper_position - mk_ball.getPosition())
         # print(distance)
 
         gripping_distance = 0.03
@@ -218,47 +218,35 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             i = 0
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(update_interval, int(
-                abs(TOA - (t * tau)) / update_interval / tau))
-            komo_duration = max(0.01, abs(TOA - (t * tau)))  # * distance
-
+            # komo_steps = int(abs(TOA - (t * tau)) / (tau))
+            steprate_per_interval = 1 / 4
+            komo_steps = int(update_interval * steprate_per_interval)
+            komo_duration = update_interval * tau  # * distance
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
                 komo_phase, komo_steps, komo_duration, True)
             komo.clearObjectives()
-            komo.addTimeOptimization()
             komo.add_qControlObjective([],
                                        1,
                                        1e1)
+            # calculate interpolated position for the next steps.
+            interpolated_position = gripper_position + \
+                min(1, (update_interval * tau) / abs(TOA - (t * tau)) +
+                    0.1) * (catch_position - gripper_position)
+
             komo.addObjective([komo_phase],
                               ry.FS.position,
                               [gripper],
                               ry.OT.eq,
                               [1e1],
-                              catch_position)
-            # if t * tau > TOA * 0.:
-            #    # try to gripp with same velocity
-            #    komo.addObjective([komo_phase - 2 * komo_phase / komo_steps, komo_phase],
-            #                      ry.FS.position,
-            #                      [gripper],
-            #                      ry.OT.sos,
-            #                      [1e1],
-            #                      1 * catch_velosity,
-            #                      order=1)
-            #   try to gripp with same velocity
+                              interpolated_position)
+            # gripper shoud be correctly orientated
             komo.addObjective([komo_phase],
                               ry.FS.vectorY,
                               [gripper],
-                              ry.OT.sos,
-                              [1e0],
+                              ry.OT.eq,
+                              [1e-1],
                               -catch_velosity)
-            # avoid collisions
-            komo.addObjective([],
-                              ry.FS.accumulatedCollisions,
-                              [],
-                              ry.OT.ineq,
-                              [1e0],
-                              [0.])
 
             # optimize
             komo.optimize()
@@ -266,7 +254,8 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         if komo is not None:
             # select frame
             try:
-                Rai.C.setFrameState(komo.getPathFrames()[i])
+                Rai.C.setFrameState(komo.getPathFrames()[
+                                    int(i * steprate_per_interval)])
                 i += 1
             except:
                 Rai.C.setFrameState(komo.getPathFrames()[-1])
@@ -308,6 +297,17 @@ def liftBall(Rai: RaiEnv, joints):
                       ry.OT.eq,
                       [1e1],
                       [0., 0.2, 0, -2.55, 0, 1.69, 0.71])
+    # deternime other joints
+    other_joints = list(set(Rai.C.getJointNames()) - set(joints))
+    # sort other joints
+    other_joints.sort()
+    # reset catching robot
+    komo.addObjective([komo_phase],
+                      ry.FS.qItself,
+                      other_joints,
+                      ry.OT.eq,
+                      [1e0],
+                      [0., -0.7, 0, -2., 0, 2., 0.71])
 
     # optimize
     komo.optimize()
