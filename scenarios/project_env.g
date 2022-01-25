@@ -16,13 +16,13 @@ wall2 (world){
 }
 
 wall3 (world){
-    shape:ssBox, Q:<t(0. -.8 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. -.8 .35) d(90 1 0 0)>, size:[3.5 1.3 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall4 (world){
-    shape:ssBox, Q:<t(0. .8 .35) d(90 1 0 0)>, size:[3.5 0.8 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. .8 .35) d(90 1 0 0)>, size:[3.5 1.3 .15 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }

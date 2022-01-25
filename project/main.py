@@ -302,7 +302,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         except:
             ballHeight = 1.
 
-        if ballHeight < 0.07:
+        if ballHeight < 0.1:
             break
 
     return grasped
@@ -352,8 +352,20 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([0.55, .09, 1.])
-    #print("Throwing Velocity: {}".format(throwing_velocity))
+    throwing_velocity = np.array(
+        throw_direction) * (np.array([0.7, .0, 1.6]) + [0.7, 0.4, 0.6] * (np.random.random(3) - .5))
+    print()
+    print("Throwing Velocity: {}".format(throwing_velocity))
+
+    power = np.sum(abs(throwing_velocity))
+    print(power)
+    if power > 2.9:
+        print("toooooo far")
+        throwing_velocity *= 2.6 / power
+    elif power < 2.2:
+        print("toooooo loooow")
+        throwing_velocity *= 2.4 / power
+    print()
 
     komo_phase = 1.
     komo_steps = 20
