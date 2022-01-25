@@ -29,8 +29,9 @@ class RaiEnv:
                  useROS=False,
                  initSim=True,
                  initConfig=True,
+                 verboseConfig=1,
                  simulatorEngine=ry.SimulatorEngine.physx,
-                 verboseSim=0,
+                 verboseSim=1,
                  defaultCamera=True):
 
         # assert input
@@ -46,6 +47,7 @@ class RaiEnv:
         self.time = 0
         self.useROS = useROS
         self.initConfig = initConfig
+        self.verboseConfig = verboseConfig
         self.verboseSim = verboseSim
         self.simulatorEngine = simulatorEngine
         self.defaultCamera = defaultCamera
@@ -84,7 +86,8 @@ class RaiEnv:
     def _init_modelWorld(self, env):
         self.C = ry.Config()
         self.C.addFile(env)
-        self.D = self.C.view()
+        if self.verboseConfig:
+            self.D = self.C.view()
         if self.defaultCamera:
             self.add_camera()
         self._sort_C_frames()

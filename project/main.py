@@ -24,6 +24,8 @@ from lib.tools.ProjectileMotion import ProjectileMotion
 
 def main():
 
+    verbose = 1
+
     #########################################
     # initialize rai simulation here        #
     #########################################
@@ -33,8 +35,9 @@ def main():
                  useROS=False,
                  initSim=True,
                  initConfig=True,
+                 verboseConfig=verbose,
                  simulatorEngine=ry.SimulatorEngine.bullet,
-                 verboseSim=1,
+                 verboseSim=verbose,
                  defaultCamera=False)
 
     #########################################
@@ -87,7 +90,10 @@ def main():
     # pick ball here
     grasped = pickBall(Rai, gripper, mk_ball)
 
-    for f in range(6):
+    number_throws = 6
+    number_catches = 0
+
+    for f in range(number_throws):
 
         gripper, throw_direction, joints = selectPickingRobot(
             Rai, robots, mk_ball)
@@ -99,8 +105,10 @@ def main():
 
         grasped = catchBall(Rai, gripper, mk_ball, catching_props)
 
-        i = 0
+        if grasped:
+            number_catches += 1
 
+        i = 0
         while not grasped:
             if i % 10 == 0:
                 update_ball_marker(Rai, mk_ball)
@@ -109,6 +117,7 @@ def main():
             i += 1
             grasped = pickBall(Rai, gripper, mk_ball)
 
+    print("Number of catches: {}/{}".format(number_catches, number_throws))
     input()
 
 
