@@ -200,7 +200,6 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                     (t + update_interval) * tau)
                 catch_velosity = ballMotion.getVelosity(
                     (t + update_interval) * tau)
-
             # print(catch_position)
 
         gripper_position = Rai.C.getFrame(gripper).getPosition()
@@ -222,7 +221,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             Rai.S.openGripper(gripper, speed=20.)
 
         if t % update_interval == 0 and not gripping \
-                and catch_velosity is not None and t * tau > timeOfArrival * 0.1:
+                and catch_velosity is not None:
             i = 0
             # start grapsing here
             komo_phase = 1.
@@ -285,11 +284,11 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
         # end loop when ball hits the ground
         try:
-            ballHeight = ballMotion.getPosition((t - 1) * tau)[2]
+            ballHeight = ballMotion.getPosition(t * tau)[2]
         except:
             ballHeight = 1.
 
-        if ballHeight < 0.08:
+        if ballHeight < 0.07:
             break
 
     return grasped
@@ -339,7 +338,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([1.85, 0.09, 1.4])
+    throwing_velocity = np.array(throw_direction) * np.array([.65, 0.09, 1.8])
     #print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
