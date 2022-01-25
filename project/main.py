@@ -108,13 +108,10 @@ def main():
         if grasped:
             number_catches += 1
 
-        i = 0
         while not grasped:
-            if i % 10 == 0:
-                update_ball_marker(Rai, mk_ball)
-                gripper, throw_direction, joints = selectPickingRobot(
-                    Rai, robots, mk_ball)
-            i += 1
+            gripper, throw_direction, joints = selectPickingRobot(
+                Rai, robots, mk_ball)
+
             grasped = pickBall(Rai, gripper, mk_ball)
 
     print("Number of catches: {}/{}".format(number_catches, number_throws))
@@ -240,10 +237,17 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             komo.add_qControlObjective([],
                                        1,
                                        1e1)
+
             # calculate interpolated position for the next steps.
-            interpolated_position = gripper_position + \
-                min(1, (update_interval * tau) / abs(timeOfArrival - (t * tau)) +
-                    0.1) * (catch_position - gripper_position)
+            timeToArrival = abs(timeOfArrival - (t * tau))
+
+            # to avoid devide by zero
+            if timeToArrival != 0:
+                interpolated_position = (gripper_position +
+                                         min(1, (update_interval * tau) / timeToArrival +
+                                             0.1) * (catch_position - gripper_position))
+            else:
+                interpolated_position = catch_position
 
             komo.addObjective([komo_phase],
                               ry.FS.position,
@@ -335,7 +339,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([0.65, 0.09, 1.8])
+    throwing_velocity = np.array(throw_direction) * np.array([1.85, 0.09, 1.4])
     #print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
@@ -404,8 +408,6 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
     ballMotion = ProjectileMotion(gravity=0)
 
-    config_obj_name = mk_ball.getName()
-
     t = 0
 
     update_interval = 10
@@ -423,16 +425,16 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        # check if ball is near robot
-        ballToRobotDistance = np.linalg.norm(Rai.C.getFrame(
-            "{}panda_link0".format(gripper[:2])).getPosition() - mk_ball.getPosition())
-        print(ballToRobotDistance)
-        if ballToRobotDistance >= .99:
-            Rai.S.step([], tau, ry.ControlMode.none)
-            break
-
         if t % max(1, int(update_interval / 1)) == 0:
             ball_position = update_ball_marker(Rai, mk_ball)
+
+            # check if ball is near robot
+            ballToRobotDistance = np.linalg.norm(Rai.C.getFrame(
+                "{}panda_link0".format(gripper[:2])).getPosition() - mk_ball.getPosition())
+
+            if ballToRobotDistance >= .99:
+                Rai.S.step([], tau, ry.ControlMode.none)
+                break
 
         try:  # get distance in next step!
             distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
@@ -455,7 +457,6 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
                 pickup_position = ball_position
 
         gripping_distance = 0.03
-
         if not gripping and (distance <= gripping_distance):
             Rai.S.closeGripper(gripper, speed=20.)
             gripping = True
