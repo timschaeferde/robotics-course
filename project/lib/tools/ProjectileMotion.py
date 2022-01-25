@@ -1,3 +1,4 @@
+from cmath import sqrt
 import numpy as np
 
 
@@ -24,7 +25,7 @@ class ProjectileMotion:
 
     def updatePosition(self, position, t):
         # perdict position for error check
-        #pred = self.getPosition(t)
+        # pred = self.getPosition(t)
 
         self.t.append(t)
         self.positions.append(np.array(position))
@@ -100,13 +101,21 @@ class ProjectileMotion:
         return np.array([0., 0., -self.g])
 
     def getTimeOfArival(self, value, axis=0):
+        if len(self.velocities) < 1:
+            return 0.
 
+        # x or y axis
         if axis < 2:
-            if len(self.velocities) < 1:
-                return 0.
-            TOA = (value - self.positions[-1][axis]) / \
-                (np.array(self.velocities[-1][axis])) + self.t[-1]
-            return TOA
+            timeOfArrival = ((value - self.positions[-1][axis]) /
+                             (np.array(self.velocities[-1][axis])) +
+                             self.t[-1])
+        # z axis
         else:
-            # z axis not implemented
-            return None
+            v_0 = self.velocities[-1][axis]
+            x_0 = self.positions[-1][axis]
+            a_0 = self.g
+
+            sqrt_term = sqrt(v_0**2 + 2 * a_0 * (x_0 - value))
+            # time of arrival plus current time to get absolute time
+            timeOfArrival = (v_0 + sqrt_term) / a_0 + self.t[-1]
+        return float(timeOfArrival)

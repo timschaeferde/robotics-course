@@ -175,7 +175,8 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             # round to tau steps
             try:
                 TOA = round(ballMotion.getTimeOfArival(
-                    catching_props["distance"], catching_props["axis"]) * 1 / tau) * tau
+                    0.6, 2) * 1 / tau) * tau
+                print(TOA)
             except:
                 TOA = -1
             # print("Time:\t{:.2f}".format(t * tau))
