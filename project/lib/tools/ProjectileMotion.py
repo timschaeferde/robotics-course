@@ -102,7 +102,7 @@ class ProjectileMotion:
 
     def getTimeOfArrival(self, value, axis=0):
         if len(self.velocities) < 1:
-            return 0.
+            return -1
 
         # x or y axis
         if axis < 2:

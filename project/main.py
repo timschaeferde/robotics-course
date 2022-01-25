@@ -56,7 +56,7 @@ def main():
                "joints":['L_panda_joint1', 'L_panda_joint2', 'L_panda_joint3',
                          'L_panda_joint4', 'L_panda_joint5', 'L_panda_joint6',
                          'L_panda_joint7'],
-               "catching_props": {"distance": 0.6, "axis": 2},
+               "catching_props": {"height": 0.85, "distance": 0.6, "axis": 2},
                },
               {"prefix": "R_",
                "throw_direction": [1, -1, 1],
@@ -64,7 +64,7 @@ def main():
                "joints":['R_panda_joint1', 'R_panda_joint2', 'R_panda_joint3',
                          'R_panda_joint4', 'R_panda_joint5', 'R_panda_joint6',
                          'R_panda_joint7'],
-               "catching_props": {"distance": 0.6, "axis": 2},
+               "catching_props": {"height": 0.85, "distance": 0.6, "axis": 2},
                }
               ]
 
@@ -159,6 +159,9 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
     t = 0
 
+    robot_link_name = "{}panda_link1_1".format(gripper[:2])
+    robot_position = Rai.C.getFrame(robot_link_name).getPosition()
+
     komo = None
 
     update_interval = 20
@@ -174,33 +177,44 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % update_interval == 0:
+        if t % int(update_interval) == 0:
+            t0 = datetime.now()
+
             position = update_ball_marker(Rai, mk_ball)
             ballMotion.updatePosition(position, t * tau)
 
-            # round to tau steps
-            try:
+            print("Timediff: \t{:.5f}".format(
+                 (datetime.now() - t0).total_seconds()))
+
+            catching_range = catching_props["height"]
+
+            # variable to skip komo calculation when ball is not catchable
+            calc_komo = False
+            for height in range(10, 0, -1):
+                # scale to meters
+                height /= 10
+
+                # get time of arrival for hight
                 timeOfArrival = ballMotion.getTimeOfArrival(
-                    catching_props["distance"], catching_props["axis"])
+                    height, 2)
+
+                # break if time cannot be calculated
+                if timeOfArrival < 0:
+                    break
+
                 # round time of arrvial to steps
                 timeOfArrival = round(timeOfArrival * 1 / tau) * tau
-            except:
-                timeOfArrival = -1
-            # print("Time:\t{:.2f}".format(t * tau))
-            # print("ToA:\t{:.3f}".format(TOA))
 
-            # calculate catching position at ToA
-            if timeOfArrival >= t * tau:
-                # if TOA is in future
                 catch_position = ballMotion.getPosition(timeOfArrival)
-                catch_velosity = ballMotion.getVelosity(timeOfArrival)
-            else:
-                # if TOA passed already
-                catch_position = ballMotion.getPosition(
-                    (t + update_interval) * tau)
-                catch_velosity = ballMotion.getVelosity(
-                    (t + update_interval) * tau)
-            # print(catch_position)
+
+                # check if ball is near robot
+                ballToRobotDistance = np.linalg.norm(
+                    robot_position - catch_position)
+                if ballToRobotDistance <= catching_range:
+                    calc_komo = True
+                    break
+
+            catch_velosity = ballMotion.getVelosity(timeOfArrival)
 
         gripper_position = Rai.C.getFrame(gripper).getPosition()
         try:  # get distance in next step!
@@ -220,7 +234,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             gripping = False
             Rai.S.openGripper(gripper, speed=20.)
 
-        if t % update_interval == 0 and not gripping \
+        if t % update_interval == 0 and not gripping and calc_komo\
                 and catch_velosity is not None:
             i = 0
             # start grapsing here
@@ -338,7 +352,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([.65, 0.09, 1.8])
+    throwing_velocity = np.array(throw_direction) * np.array([0.55, .09, 1.])
     #print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
@@ -410,6 +424,8 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
     t = 0
 
     update_interval = 10
+
+    komo = None
 
     distance = 1.
 
