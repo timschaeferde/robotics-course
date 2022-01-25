@@ -109,6 +109,7 @@ class ProjectileMotion:
             timeOfArrival = ((value - self.positions[-1][axis]) /
                              (np.array(self.velocities[-1][axis])) +
                              self.t[-1])
+
         # z axis
         else:
             v_0 = self.velocities[-1][axis]
@@ -118,4 +119,5 @@ class ProjectileMotion:
             sqrt_term = sqrt(v_0**2 + 2 * a_0 * (x_0 - value))
             # time of arrival plus current time to get absolute time
             timeOfArrival = (v_0 + sqrt_term) / a_0 + self.t[-1]
+
         return float(timeOfArrival)

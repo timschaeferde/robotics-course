@@ -53,7 +53,7 @@ def main():
                "joints":['L_panda_joint1', 'L_panda_joint2', 'L_panda_joint3',
                          'L_panda_joint4', 'L_panda_joint5', 'L_panda_joint6',
                          'L_panda_joint7'],
-               "catching_props": {"distance": 0.65, "axis": 0},
+               "catching_props": {"distance": 0.6, "axis": 2},
                },
               {"prefix": "R_",
                "throw_direction": [1, -1, 1],
@@ -61,7 +61,7 @@ def main():
                "joints":['R_panda_joint1', 'R_panda_joint2', 'R_panda_joint3',
                          'R_panda_joint4', 'R_panda_joint5', 'R_panda_joint6',
                          'R_panda_joint7'],
-               "catching_props": {"distance": -0.65, "axis": 0},
+               "catching_props": {"distance": 0.6, "axis": 2},
                }
               ]
 
@@ -175,14 +175,13 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             # round to tau steps
             try:
                 TOA = round(ballMotion.getTimeOfArival(
-                    0.6, 2) * 1 / tau) * tau
-                print(TOA)
+                    catching_props["distance"], catching_props["axis"]) * 1 / tau) * tau
             except:
                 TOA = -1
             # print("Time:\t{:.2f}".format(t * tau))
             # print("ToA:\t{:.3f}".format(TOA))
-            # calculate catching position at ToA
 
+            # calculate catching position at ToA
             if TOA >= t * tau:
                 # if TOA is in future
                 catch_position = ballMotion.getPosition(TOA)
@@ -325,7 +324,7 @@ def liftBall(Rai: RaiEnv, joints):
 
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
-    throwing_velocity = np.array(throw_direction) * np.array([0.75, 0.02, 1.6])
+    throwing_velocity = np.array(throw_direction) * np.array([0.65, 0.09, 1.8])
     #print("Throwing Velocity: {}".format(throwing_velocity))
 
     komo_phase = 1.
