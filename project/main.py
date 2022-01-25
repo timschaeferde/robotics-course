@@ -183,18 +183,20 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
             # round to tau steps
             try:
-                TOA = round(ballMotion.getTimeOfArival(
-                    catching_props["distance"], catching_props["axis"]) * 1 / tau) * tau
+                timeOfArrival = ballMotion.getTimeOfArrival(
+                    catching_props["distance"], catching_props["axis"])
+                # round time of arrvial to steps
+                timeOfArrival = round(timeOfArrival * 1 / tau) * tau
             except:
-                TOA = -1
+                timeOfArrival = -1
             # print("Time:\t{:.2f}".format(t * tau))
             # print("ToA:\t{:.3f}".format(TOA))
 
             # calculate catching position at ToA
-            if TOA >= t * tau:
+            if timeOfArrival >= t * tau:
                 # if TOA is in future
-                catch_position = ballMotion.getPosition(TOA)
-                catch_velosity = ballMotion.getVelosity(TOA)
+                catch_position = ballMotion.getPosition(timeOfArrival)
+                catch_velosity = ballMotion.getVelosity(timeOfArrival)
             else:
                 # if TOA passed already
                 catch_position = ballMotion.getPosition(
@@ -223,7 +225,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             Rai.S.openGripper(gripper, speed=20.)
 
         if t % update_interval == 0 and not gripping \
-                and catch_velosity is not None and t * tau > TOA * 0.1:
+                and catch_velosity is not None and t * tau > timeOfArrival * 0.1:
             i = 0
             # start grapsing here
             komo_phase = 1.
@@ -240,7 +242,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                                        1e1)
             # calculate interpolated position for the next steps.
             interpolated_position = gripper_position + \
-                min(1, (update_interval * tau) / abs(TOA - (t * tau)) +
+                min(1, (update_interval * tau) / abs(timeOfArrival - (t * tau)) +
                     0.1) * (catch_position - gripper_position)
 
             komo.addObjective([komo_phase],
