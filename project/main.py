@@ -232,7 +232,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
             distance = np.linalg.norm(gripper_position - mk_ball.getPosition())
         # print(distance)
 
-        gripping_distance = 0.03
+        gripping_distance = 0.035
 
         if not gripping and (distance <= gripping_distance):
             Rai.S.closeGripper(gripper, speed=20.)
@@ -280,7 +280,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
                               ry.FS.vectorY,
                               [gripper],
                               ry.OT.eq,
-                              [1e-1],
+                              [1e0],
                               -catch_velosity)
 
             # optimize
@@ -361,24 +361,24 @@ def liftBall(Rai: RaiEnv, joints):
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     throwing_velocity = np.array(
-        throw_direction) * (np.array([0.75, .0, 1.7]) + [0.7, 0.5, 0.8] * (np.random.random(3) - .5))
+        throw_direction) * (np.array([1.3, .0, 2.7]) + [0.5, 0.8, 0.9] * (np.random.random(3) - .5))
 
-    #print("Throwing Velocity: {}".format(throwing_velocity))
+    print("Throwing Velocity: {}".format(throwing_velocity))
 
     power = np.sum(abs(throwing_velocity))
-    # print(power)
+    print(power)
 
     # keep ball in catching range
-    if power > 2.85:
-        print("toooooo far")
-        throwing_velocity *= 2.6 / power
-    elif power < 2.25:
-        print("toooooo loooow")
-        throwing_velocity *= 2.4 / power
+    if power > 4.9:
+        print("\n\n\n toooooo far\n\n\n")
+        throwing_velocity *= 4.6 / power
+    elif power < 3.6:
+        print("\n\n\ntoooooo loooow\n\n\n")
+        throwing_velocity *= 4.2 / power
 
     komo_phase = 1.
     komo_steps = 20
-    komo_duration = 0.4 * np.linalg.norm(throwing_velocity)
+    komo_duration = 0.1 * power
 
     # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
     komo = Rai.C.komo_path(komo_phase, komo_steps, komo_duration, 2)
@@ -386,7 +386,7 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
     komo.add_qControlObjective([],
                                1,
                                1e1)
-    komo.addObjective([0.4 * komo_phase, komo_phase],
+    komo.addObjective([0.5 * komo_phase, komo_phase],
                       ry.FS.position,
                       [gripper],
                       ry.OT.eq,
@@ -477,7 +477,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         if int(t) % update_interval == 0:
             ball_position = update_ball_marker(Rai, mk_ball)
         # else:
-            #time.sleep(tau * .8)
+            time.sleep(tau * .8)
 
         try:  # get distance in next step!
             distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
@@ -489,12 +489,12 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         # print(distance)
 
         if t % max(1, int(update_interval / 1)) == 0:
-            komo_steps = max(1, int(6 * distance))
-            komo_duration = 0.05 * komo_steps  # * distance
+            komo_steps = max(2, int(8 * distance))
+            komo_duration = 0.04 * komo_steps  # * distance
 
             ballMotion.updatePosition(ball_position, t * tau)
             pickup_position = ballMotion.getPosition(
-                (t + komo_steps + 1) * tau)
+                (t + komo_steps) * tau)
             pickup_velosity = ballMotion.getVelosity(t * tau + komo_duration)
             if pickup_position is None:
                 pickup_position = ball_position
@@ -511,8 +511,8 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
             i = 0
             # start grapsing here
             komo_phase = 1.
-            komo_steps = max(1, int(8 * distance))
-            komo_duration = 0.08 * komo_steps  # * distance
+            #komo_steps = max(2, int(8 * distance))
+            # komo_duration = 0.08 * komo_steps  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
             komo = Rai.C.komo_path(
@@ -533,7 +533,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
                               ry.FS.position,
                               [gripper],
                               ry.OT.sos,
-                              [6e0],
+                              [1e1],
                               [0., 0., 0.],
                               order=1)
             # gipper orthogonal to surface
@@ -548,7 +548,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
                               ry.FS.accumulatedCollisions,
                               [],
                               ry.OT.ineq,
-                              [1e-1],
+                              [1e0],
                               [0.])
 
             # optimize
