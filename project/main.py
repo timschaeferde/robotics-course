@@ -30,8 +30,8 @@ def main():
     # initialize rai simulation here        #
     #########################################
     Rai = RaiEnv(tau=.01,
-                 realEnv="scenarios/project_env.g",
-                 modelEnv="scenarios/project_env.g",
+                 realEnv="project/scenarios/project_env.g",
+                 modelEnv="project/scenarios/project_env.g",
                  useROS=False,
                  initSim=True,
                  initConfig=True,
@@ -44,11 +44,11 @@ def main():
     # init cameras                          #
     #########################################
 
-    Rai.add_camera("camera1", 640, 480, 0.69, zRange=[0.01, 6])
-    Rai.add_camera("camera2", 640, 480, 0.8954, zRange=[0.01, 6])
-    Rai.add_camera("camera4", 640, 480, 0.8954, zRange=[0.01, 6])
-    Rai.add_camera("camera5", 640, 480, 0.8954, zRange=[0.01, 6])
-    Rai.add_camera("camera3", 640, 360, 0.8954, zRange=[0.01, 6])
+    Rai.add_camera("camera1", 640, 480, 0.75, zRange=[0.05, 6])
+    Rai.add_camera("camera2", 640, 480, 0.75, zRange=[0.05, 6])
+    Rai.add_camera("camera4", 320, 240, 0.75, zRange=[0.05, 6])
+    Rai.add_camera("camera5", 320, 240, 0.75, zRange=[0.05, 6])
+    Rai.add_camera("camera3", 640, 280, 0.9, zRange=[0.01, 6])
 
     robots = [{"prefix": "L_",
                "throw_direction": [-1, 1, 1],
@@ -90,7 +90,7 @@ def main():
     # pick ball here
     grasped = pickBall(Rai, gripper, mk_ball)
 
-    number_throws = 6
+    number_throws = 100
     number_catches = 0
 
     for f in range(number_throws):
@@ -118,6 +118,10 @@ def main():
                 Rai, robots, mk_ball)
 
             grasped = pickBall(Rai, gripper, mk_ball)
+
+            if i > 4000:
+                print("exit sim")
+                exit()
 
         print("Number of catches: {}/{}".format(number_catches, f + 1))
     input()
@@ -170,7 +174,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
     komo = None
 
-    update_interval = 14
+    update_interval = 10
 
     while not grasped:
 
@@ -340,13 +344,14 @@ def liftBall(Rai: RaiEnv, joints):
                       [1e0],
                       [0., -0.7, 0, -2., 0, 2., 0.71])
 
+    t0 = datetime.now()
     # optimize
     komo.optimize()
+    komo_opt_time = (datetime.now() - t0).total_seconds()
 
-    # Simulate here!
-    # execute komo path to the ball
+    # Simulate  here!
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        time.sleep(tau)
+        #time.sleep(max(0, tau - komo_opt_time / len(komo.getPathFrames())))
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
         # send position to the simulation
@@ -356,7 +361,7 @@ def liftBall(Rai: RaiEnv, joints):
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     throwing_velocity = np.array(
-        throw_direction) * (np.array([0.75, .0, 1.65]) + [0.7, 0.5, 0.8] * (np.random.random(3) - .5))
+        throw_direction) * (np.array([0.75, .0, 1.7]) + [0.7, 0.5, 0.8] * (np.random.random(3) - .5))
 
     #print("Throwing Velocity: {}".format(throwing_velocity))
 
@@ -366,10 +371,10 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
     # keep ball in catching range
     if power > 2.85:
         print("toooooo far")
-        throwing_velocity *= 2.7 / power
-    elif power < 2.2:
+        throwing_velocity *= 2.6 / power
+    elif power < 2.25:
         print("toooooo loooow")
-        throwing_velocity *= 2.3 / power
+        throwing_velocity *= 2.4 / power
 
     komo_phase = 1.
     komo_steps = 20
@@ -402,8 +407,10 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
                       [1e1],
                       [0.])
 
+    t0 = datetime.now()
     # optimize
     komo.optimize()
+    komo_opt_time = (datetime.now() - t0).total_seconds()
 
     # Simulate throw here!
     # length for ball release in last frame
@@ -411,7 +418,7 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
     i = 0
     # execute komo path to the ball
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        time.sleep(tau)
+        #time.sleep(max(0, tau - komo_opt_time / komo_length))
         i += 1
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
@@ -469,8 +476,8 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
         if int(t) % update_interval == 0:
             ball_position = update_ball_marker(Rai, mk_ball)
-        else:
-            time.sleep(tau * .8)
+        # else:
+            #time.sleep(tau * .8)
 
         try:  # get distance in next step!
             distance = np.linalg.norm(Rai.C.getFrame(gripper).getPosition(
@@ -573,16 +580,16 @@ def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
     ball_position = get_ball_position(Rai, ball_color)
 
     # CHEAT and error eval
-    ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
-    pprint("norm ball error: \t\t{}".format(
-        np.linalg.norm(ball_position - ball_position_real)))
-    pprint("ball error: \t\t{}".format(
-        (ball_position - ball_position_real)))
+    # ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
+    # print("norm ball error: \t{:.5f}".format(
+    #    np.linalg.norm(ball_position - ball_position_real)))
+    # print("ball error: \t\t{}".format(
+    #    (ball_position - ball_position_real)))
     # print("*************** Cheating! **************")
     # ball_position = ball_position_real
 
-    print("Timediff: \t{:.5f}".format(
-        (datetime.now() - t0).total_seconds()))
+    # print("Timediff: \t{:.5f}".format(
+    #    (datetime.now() - t0).total_seconds()))
 
     mk_ball.setPosition(ball_position)
 

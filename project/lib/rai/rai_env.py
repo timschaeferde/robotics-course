@@ -148,8 +148,6 @@ class RaiEnv:
 
     def grab_camera_image(self, cameraName):
 
-        camera = self.cameras[cameraName]
-
         self.S.selectSensor(cameraName)
         [rgb, depth] = self.S.getImageAndDepth()
 
