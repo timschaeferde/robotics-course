@@ -4,25 +4,25 @@ world {}
 ### walls
 
 wall1 (world){
-    shape:ssBox, Q:<t(-1.65 0. .8) d(90 0 1 0)>, size:[1.7 2. .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(-1.8 0. .8) d(90 0 1 0)>, size:[1.7 2. .3 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall2 (world){
-    shape:ssBox, Q:<t(1.65 0. .8) d(90 0 1 0)>, size:[1.7 2. .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(1.8 0. .8) d(90 0 1 0)>, size:[1.7 2. .3 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall3 (world){
-    shape:ssBox, Q:<t(0. -.8 .35) d(90 1 0 0)>, size:[3.5 1.3 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. -.95 .35) d(90 1 0 0)>, size:[3.5 1.3 .3 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }
 
 wall4 (world){
-    shape:ssBox, Q:<t(0. .8 .35) d(90 1 0 0)>, size:[3.5 1.3 .15 .02], color:[.3 .3 .3]
+    shape:ssBox, Q:<t(0. .95 .35) d(90 1 0 0)>, size:[3.5 1.3 .3 .02], color:[.3 .3 .3]
     contact:1, logical:{ }
     friction:.1
 }

@@ -119,9 +119,12 @@ def main():
 
             grasped = pickBall(Rai, gripper, mk_ball)
 
-            if i > 4000:
-                print("exit sim")
-                exit()
+            if i % 4000 == 0:
+                Rai.RealWorld.getFrame("ball").setPosition([0.5, 0., 0.05])
+                Rai.C.getFrame("ball").setPosition([0.5, 0., 0.05])
+                Rai.S.setState(Rai.C.getFrameState()[
+                               :len(Rai.RealWorld.getFrameState())])
+                print("\n\n\n\nReset Simulation!\n\n\n\n")
 
         print("Number of catches: {}/{}".format(number_catches, f + 1))
     input()
@@ -351,7 +354,7 @@ def liftBall(Rai: RaiEnv, joints):
 
     # Simulate  here!
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        #time.sleep(max(0, tau - komo_opt_time / len(komo.getPathFrames())))
+        # time.sleep(max(0, tau - komo_opt_time / len(komo.getPathFrames())))
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
         # send position to the simulation
@@ -370,10 +373,10 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     # keep ball in catching range
     if power > 4.9:
-        print("\n\n\n toooooo far\n\n\n")
+        print("\n\ntoooooo far\n\n")
         throwing_velocity *= 4.6 / power
     elif power < 3.6:
-        print("\n\n\ntoooooo loooow\n\n\n")
+        print("\n\ntoooooo loooow\n\n")
         throwing_velocity *= 4.2 / power
 
     komo_phase = 1.
@@ -418,7 +421,7 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
     i = 0
     # execute komo path to the ball
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        #time.sleep(max(0, tau - komo_opt_time / komo_length))
+        # time.sleep(max(0, tau - komo_opt_time / komo_length))
         i += 1
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
@@ -511,7 +514,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
             i = 0
             # start grapsing here
             komo_phase = 1.
-            #komo_steps = max(2, int(8 * distance))
+            # komo_steps = max(2, int(8 * distance))
             # komo_duration = 0.08 * komo_steps  # * distance
 
             # we want to optimize a single step (1 phase, 1 step/phase, duration=1, k_order=1)
