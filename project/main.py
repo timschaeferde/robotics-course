@@ -90,7 +90,7 @@ def main():
     # pick ball here
     grasped = pickBall(Rai, gripper, mk_ball)
 
-    number_throws = 100
+    number_throws = 6
     number_catches = 0
 
     for f in range(number_throws):
@@ -108,7 +108,12 @@ def main():
         if grasped:
             number_catches += 1
 
+        i = 0
+        print("PICKING")
         while not grasped:
+            i += 1
+            if i % 50 == 0:
+                update_ball_marker(Rai, mk_ball)
             gripper, throw_direction, joints = selectPickingRobot(
                 Rai, robots, mk_ball)
 
@@ -179,13 +184,10 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
         if t % int(update_interval) == 0:
-            t0 = datetime.now()
 
             position = update_ball_marker(Rai, mk_ball)
-            ballMotion.updatePosition(position, t * tau)
 
-            print("Timediff: \t{:.5f}".format(
-                 (datetime.now() - t0).total_seconds()))
+            ballMotion.updatePosition(position, t * tau)
 
             catching_range = catching_props["height"]
 
@@ -354,19 +356,20 @@ def liftBall(Rai: RaiEnv, joints):
 def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     throwing_velocity = np.array(
-        throw_direction) * (np.array([0.7, .0, 1.6]) + [0.7, 0.4, 0.6] * (np.random.random(3) - .5))
-    print()
-    print("Throwing Velocity: {}".format(throwing_velocity))
+        throw_direction) * (np.array([0.75, .0, 1.65]) + [0.7, 0.5, 0.8] * (np.random.random(3) - .5))
+
+    #print("Throwing Velocity: {}".format(throwing_velocity))
 
     power = np.sum(abs(throwing_velocity))
-    print(power)
+    # print(power)
+
+    # keep ball in catching range
     if power > 2.85:
         print("toooooo far")
-        throwing_velocity *= 2.6 / power
+        throwing_velocity *= 2.7 / power
     elif power < 2.2:
         print("toooooo loooow")
-        throwing_velocity *= 2.4 / power
-    print()
+        throwing_velocity *= 2.3 / power
 
     komo_phase = 1.
     komo_steps = 20
@@ -426,7 +429,6 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
 
 def pickBall(Rai: RaiEnv, gripper, mk_ball):
-    print("PICKING")
     tau = .01
 
     gripping = False
@@ -447,6 +449,15 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
     distance = 1.
 
     while not grasped:
+        if int(t) % update_interval == 0:
+            # check if ball is near robot
+            ballToRobotDistance = np.linalg.norm(
+                robot_link_position - mk_ball.getPosition())
+
+            if ballToRobotDistance >= .99:
+                Rai.S.step([], tau, ry.ControlMode.none)
+                break
+
         if gripping and Rai.S.getGripperIsGrasping(gripper):
             print("GRASPED!")
             grasped = True
@@ -458,14 +469,6 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
         if int(t) % update_interval == 0:
             ball_position = update_ball_marker(Rai, mk_ball)
-
-            # check if ball is near robot
-            ballToRobotDistance = np.linalg.norm(
-                robot_link_position - mk_ball.getPosition())
-
-            if ballToRobotDistance >= .99:
-                Rai.S.step([], tau, ry.ControlMode.none)
-                break
         else:
             time.sleep(tau * .8)
 
@@ -564,17 +567,25 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
 
 def update_ball_marker(Rai: RaiEnv, mk_ball, ball_color=[1., 1., 0.]):
+    t0 = datetime.now()
 
     # color segment ball etc.
     ball_position = get_ball_position(Rai, ball_color)
 
-    # CHEAT
-    # ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
-    # pprint("ball error: {}".format(np.linalg.norm(ball_position-ball_position_real)))
+    # CHEAT and error eval
+    ball_position_real = Rai.RealWorld.getFrame("ball").getPosition()
+    pprint("norm ball error: \t\t{}".format(
+        np.linalg.norm(ball_position - ball_position_real)))
+    pprint("ball error: \t\t{}".format(
+        (ball_position - ball_position_real)))
     # print("*************** Cheating! **************")
     # ball_position = ball_position_real
 
+    print("Timediff: \t{:.5f}".format(
+        (datetime.now() - t0).total_seconds()))
+
     mk_ball.setPosition(ball_position)
+
     return ball_position
 
 
@@ -605,7 +616,7 @@ def get_ball_position(Rai: RaiEnv, ball_color, useAllCameras=True):
             # skip if no points where found
             continue
         # get center of points plus offset due to convex pointcloud
-        rel_position = ball_points.mean(axis=0) + np.array([0, 0, 0.01])
+        rel_position = ball_points.mean(axis=0) - np.array([0, 0, 0.017])
         # transform to real world coordinates
         positions.append(camera.transformPointsToRealWorld(rel_position))
 
