@@ -354,7 +354,7 @@ def liftBall(Rai: RaiEnv, joints):
 
     # Simulate  here!
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        # time.sleep(max(0, tau - komo_opt_time / len(komo.getPathFrames())))
+        time.sleep(max(0, tau - komo_opt_time / len(komo.getPathFrames())))
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
         # send position to the simulation
@@ -421,7 +421,7 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
     i = 0
     # execute komo path to the ball
     for frame, tau in zip(komo.getPathFrames(), komo.getPathTau()):
-        # time.sleep(max(0, tau - komo_opt_time / komo_length))
+        time.sleep(max(0, tau - komo_opt_time / komo_length))
         i += 1
         Rai.C.setFrameState(frame)
         q = Rai.C.getJointState()
