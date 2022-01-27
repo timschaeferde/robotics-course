@@ -10,8 +10,6 @@ from xmlrpc.client import Boolean
 
 import numpy as np
 
-from config.CONFIG import *
-
 # imported from project/lib/build (as symlink)
 import lib.build.libry as ry
 from lib.rai.rai_env import RaiCamera, RaiEnv
