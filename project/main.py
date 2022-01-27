@@ -68,7 +68,7 @@ def main():
                }
               ]
 
-    # input()
+    input()
 
     # inialize ball marker
     mk_ball_name = "mk_ball"
@@ -449,7 +449,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
 
     t = 0
 
-    update_interval = 10
+    update_interval = 14
 
     komo = None
 
@@ -492,7 +492,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
         # print(distance)
 
         if t % max(1, int(update_interval / 1)) == 0:
-            komo_steps = max(2, int(8 * distance))
+            komo_steps = max(6, int(8 * distance))
             komo_duration = 0.04 * komo_steps  # * distance
 
             ballMotion.updatePosition(ball_position, t * tau)
