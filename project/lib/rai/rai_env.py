@@ -9,6 +9,7 @@ import cv2 as cv
 import numpy as np
 from pyquaternion import Quaternion
 
+# imported from project/lib/build (as symlink)
 import lib.build.libry as ry
 from lib.rai.rai_helper import set_frame_properties
 
