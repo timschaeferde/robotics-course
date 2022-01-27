@@ -50,6 +50,10 @@ def main():
     Rai.add_camera("camera5", 320, 240, 0.75, zRange=[0.05, 6])
     Rai.add_camera("camera3", 640, 280, 0.9, zRange=[0.01, 6])
 
+    #########################################
+    # roboter configs                       #
+    #########################################
+
     robots = [{"prefix": "L_",
                "throw_direction": [-1, 1, 1],
                "lift_position": [.9, 0., .2],
@@ -78,10 +82,8 @@ def main():
     mk_ball.setColor([0., 1., 0])
     mk_ball.setContact(1)
 
-    # start
-
-    Rai.run_simulation(20, False)
-
+    # start here
+    # get ball position
     update_ball_marker(Rai, mk_ball)
 
     gripper, throw_direction, _ = selectPickingRobot(
@@ -91,25 +93,29 @@ def main():
     grasped = pickBall(Rai, gripper, mk_ball)
 
     number_throws = 100
-    number_catches = 0
-
+    number_catches = 0  # counter for catches
+    # main throw and catch loop
     for f in range(number_throws):
 
         gripper, throw_direction, joints = selectPickingRobot(
             Rai, robots, mk_ball)
 
+        # lift and throw ball
         liftBall(Rai, joints)
         throwBall(Rai, gripper, throw_direction, joints)
 
         gripper, catching_props = selectCatchingRobot(Rai, robots, mk_ball)
 
+        # try to catch
         grasped = catchBall(Rai, gripper, mk_ball, catching_props)
 
         if grasped:
             number_catches += 1
+        else:
+            print("PICKING")
 
+        # loop for pickup (change robot if necessary)
         i = 0
-        print("PICKING")
         while not grasped:
             i += 1
             if i % 50 == 0:
@@ -134,11 +140,14 @@ def selectPickingRobot(Rai: RaiEnv, robots, mk_ball):
 
     ball_position = mk_ball.getPosition()
     distances = []
+
+    # calc distance from robot to ball
     for robot in robots:
         prefix = robot["prefix"]
         distances.append(np.linalg.norm(Rai.C.getFrame(
             "{}panda_link0".format(prefix)).getPosition() - ball_position))
 
+    # select closed robot
     i = np.argmin(distances)
     prefix = robots[i]["prefix"]
 
@@ -149,11 +158,14 @@ def selectCatchingRobot(Rai: RaiEnv, robots, mk_ball):
 
     ball_position = mk_ball.getPosition()
     distances = []
+
+    # calc distance from robot to ball
     for robot in robots:
         prefix = robot["prefix"]
         distances.append(np.linalg.norm(Rai.C.getFrame(
             "{}panda_link0".format(prefix)).getPosition() - ball_position))
 
+    # select robot with greatest distance
     i = np.argmax(distances)
     prefix = robots[i]["prefix"]
 
@@ -179,6 +191,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
 
     update_interval = 10
 
+    # main simulation loop
     while not grasped:
 
         if gripping and Rai.S.getGripperIsGrasping(gripper):
@@ -190,7 +203,7 @@ def catchBall(Rai: RaiEnv, gripper, mk_ball, catching_props: list):
         q = Rai.S.get_q()
         Rai.C.setJointState(q)  # set your robot model to match the real q
 
-        if t % int(update_interval) == 0:
+        if t % update_interval == 0:
 
             position = update_ball_marker(Rai, mk_ball)
 
@@ -439,7 +452,6 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
 
 def pickBall(Rai: RaiEnv, gripper, mk_ball):
-    tau = .01
 
     gripping = False
     grasped = False
@@ -448,16 +460,17 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
     ballMotion = ProjectileMotion(gravity=0)
 
     t = 0
-
-    update_interval = 14
-
-    komo = None
+    tau = .01
+    update_interval = 14  # update position and images ever x steps
 
     robot_link_position = Rai.C.getFrame(
         "{}panda_link1_1".format(gripper[:2])).getPosition()
 
+    # for initalization
     distance = 1.
+    komo = None
 
+    # main simulation loop
     while not grasped:
         if int(t) % update_interval == 0:
             # check if ball is near robot
@@ -491,7 +504,7 @@ def pickBall(Rai: RaiEnv, gripper, mk_ball):
             ) - mk_ball.getPosition())
         # print(distance)
 
-        if t % max(1, int(update_interval / 1)) == 0:
+        if t % update_interval == 0:
             komo_steps = max(6, int(8 * distance))
             komo_duration = 0.04 * komo_steps  # * distance
 
