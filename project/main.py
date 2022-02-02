@@ -384,10 +384,12 @@ def throwBall(Rai: RaiEnv, gripper, throw_direction, joints):
 
     # keep ball in catching range
     if power > 4.9:
-        print("\n\ntoooooo far\n\n")
+        #print("\n\ntoooooo far\n\n")
+        # scale if throw is to far
         throwing_velocity *= 4.6 / power
     elif power < 3.6:
-        print("\n\ntoooooo loooow\n\n")
+        #print("\n\ntoooooo loooow\n\n")
+        # scale if throw is to low
         throwing_velocity *= 4.2 / power
 
     komo_phase = 1.
